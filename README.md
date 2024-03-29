@@ -1,46 +1,44 @@
 # golang study notes
 
-## 语法基础
+## 准备开始go
 
-### 准备开始go
-
-#### 官方文档
+### 官方文档
 
 地址：[Documentation - The Go Programming Languageopen in new window](https://go.dev/doc/)
 
 文档里有着对于学习Go语言所需要准备的一切东西，包括安装，快速开始，代码示例，风格建议，以及许多在线教程，大多数都是全英文的，少数支持中文，不过并没有什么特别晦涩难懂的词汇，大致意思都比较容易看懂。
 
-#### Go之旅
+### Go之旅
 
 地址：[Go 语言之旅 (go-zh.org)open in new window](https://tour.go-zh.org/welcome/1)
 
 这是由官方编写的一个非常简洁明了的教程，全中文支持，通过互动式的代码教学来帮助你快速了解Go语言的语法与特性，适合想要快速了解Go语言的人，如果将该教程浏览过一遍后，那么本站的基础教程理解起来会轻松很多。
 
-#### Effective Go
+### Effective Go
 
 地址：[Effective Go - The Go Programming Languageopen in new window](https://go.dev/doc/effective_go)
 
 这是由官方编写的一个比较全面的教程，时间最早可以追溯到2009年，内容比较详细，小到变量命名，大到一些设计思想。不过官方也标注了该文档已经很久没有进行大幅度更新，一些内容可能已经过时了，但是大部分教程都仍然适用。
 
-#### 参考手册
+### 参考手册
 
 地址：[The Go Programming Language Specificationopen in new window](https://go.dev/ref/spec)
 
 参考手册的重要性不言而喻，参考手册的内容永远会随着版本的变化而变化，时刻保持最新，其内容有：词法结构，概念定义，语句定义等等，这是一些关于Go语言中最基础的定义，适合有需要的时候查询一些概念，同时里面也有着不少的代码示例。
 
-#### 在线代码
+### 在线代码
 
 地址：[Go Playground - The Go Programming Languageopen in new window](https://go.dev/play/)
 
 由官方搭建的可在线编译并运行Go程序的网站，对于一些代码量不是特别大的Go程序，可以在官方的在线网站直接进行编写，能省去不少时间。
 
-#### 更新日志
+### 更新日志
 
 地址：[Release History - The Go Programming Languageopen in new window](https://go.dev/doc/devel/release)
 
 根据以往的惯例，官方大概每半年发布一个二级版本，每一次更新的变动都可以在更新日志中查看，例如在1.18版本中的最大变动就是增加了泛型，而1.19的更新就相对而言要温和很多，了解一下每一个版本的更新内容也会有所帮助。
 
-#### Go安装
+### Go安装
 
 推荐使用官方的安装包直接安装，下载地址：https://golang.google.cn/dl/
 
@@ -76,7 +74,7 @@ go version
 go env 
 ```
 
-#### 开发工具推荐
+### 开发工具推荐
 
 笔者推荐的go开发工具：
 
@@ -110,9 +108,9 @@ cd $GOPATH
     go install golang.org/x/lint/golint
 ```
 
-### 基础语法
+## 基础语法
 
-#### HelloWorld
+### HelloWorld
 
 通过一个简单的Hello World示例来进行讲解。
 
@@ -122,7 +120,7 @@ go的项目依赖管理一直饱受诟病，在go1.11后正式引入了`go modul
 
 ```mod
 # go.mod
-module golang/notes
+module golang/notes // 以后自定包，都需要golang/notes/xxx
 
 go 1.21.1
 ```
@@ -133,7 +131,7 @@ go 1.21.1
 package main                        //每个程序都有且仅有一个main包
 
 import "fmt"    
-
+// 程序的入口文件
 func main() {                       //主函数main只有一个
     fmt.Println("Hello World!")     //函数调用：包名.函数名
 }
@@ -163,11 +161,11 @@ go run hello.go
 - 先编译方式：可执行文件可以在任意没有go环境的机器上运行，（因为go依赖被打包进了可执行文件）
 - 直接执行方式：源码执行时，依赖于机器上的go环境，没有go环境无法直接运行
 
-#### package包
+### package包
 
 在Go中，程序是通过将包链接在一起来构建的，也可以理解为最基本的调用单位是包，而不是go文件。包其实就是一个文件夹，包内共享所有源文件的变量，常量，函数以及其他类型。包的命名风格建议都是小写字母，并且要尽量简短。
 
-##### 包导入
+#### 包导入
 
 例如创建一个`utils`包，包下有如下函数
 
@@ -250,9 +248,9 @@ func main() {
 }
 ```
 
-> 注意：在Go中完全禁止循环导入，不管是直接的还是间接的。例如包A导入了包B，包B也导入了包A，这是直接循环导入，包A导入了包C，包C导入了包B，包B又导入了包A，这就是间接的循环导入，存在循环导入的话将会无法通过编译。
+> 注意：Go中完全禁止循环导入，不管是直接的还是间接的。例如包A导入了包B，包B也导入了包A，这是直接循环导入，包A导入了包C，包C导入了包B，包B又导入了包A，这就是间接的循环导入，存在循环导入的话将会无法通过编译。
 
-##### 包导出
+#### 包导出
 
 在Go中，导出和访问控制是通过命名来进行实现的，如果想要对外暴露一个函数或者一个变量，只需要将其名称首字母大写即可，例如`example`包下的`SayHello`函数。
 
@@ -282,3 +280,24 @@ func sayHello() {
 
 对外暴露的函数和变量可以被包外的调用者导入和访问，如果是不对外暴露的话，那么仅包内的调用者可以访问，外部将无法导入和访问，**该规则适用于整个Go语言**，例如后续会学到的结构体及其字段，方法，自定义类型，接口等等。
 
+#### 私有
+
+go中约定，一个包内名为`internal` 包为私有包，其它的包将无法访问私有包中的任何东西。下面看一个例子。
+
+```bash
+ tree ./02-basegra 
+./02-basegra
+|-- main.go
+|-- test
+|   |-- internal
+|   |   `-- ser
+|   |       `-- ser.go
+|   |-- ser
+|   |   `-- ser.go
+|   `-- test.go
+`-- utils
+    |-- run.go
+    `-- say.go
+```
+
+文件结构中可知，`utils`包无法访问`ser`包中的类型。
