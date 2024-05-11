@@ -6,7 +6,11 @@ import (
 	"fmt"
 	_ "golang/notes/02-basegra/test" // 下划线表示匿名导入
 	u "golang/notes/02-basegra/utils"
+<<<<<<< HEAD
 	"math"
+=======
+	_ "golang/notes/02-basegra/test" // 下划线表示匿名导入
+>>>>>>> origin/master
 )
 import (
 	base "golang/notes/02-basegra/base"
@@ -23,6 +27,7 @@ func main() {
 	fmt.Println("多包导入", math.Pi)
 	u.GoRun() // 别名调用utils包下GoRun，函数
 	u.SayHello()
+<<<<<<< HEAD
 
 	base.Sum()          // 算数运算符
 	base.Relationship() // 关系运算符
@@ -73,4 +78,6 @@ func main() {
 
 	// := 声明注意事项
 	// num1, num2 := test()
+=======
+>>>>>>> origin/master
 }
