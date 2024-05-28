@@ -19,11 +19,22 @@ func Variable() {
 
 // VariableStat 变量声明
 func VariableStat() {
+	var aa int // 声明一个变量，默认为0
+	var bb = 10
+	cc := 20 // 声明并初始化，且自动推导类型
+
+	fmt.Println(aa, bb, cc)
+
 	// 多变量声明
-	var a1, b1 string              // 声明a1，b1类型为string
-	var c1, c2 string = "c1", "c2" // 声明变量并赋值
-	fmt.Println(a1, b1)
-	fmt.Println(c1, c2)
+	var a1, b1 string
+	fmt.Println("a1,b2:", a1, b1)
+	var c1, c2 string = "h1", "h3"
+	fmt.Println("c1,c2:", c1, c2)
+	h2, h4 := "h2", "h4"
+	fmt.Println(h2, h4)
+
+	m3, n3, q3 := 10, "n2", 30 // 自动推导类型，并初始化值
+	fmt.Println(m3, n3, q3)
 
 	// 也可以这样声明多个变量
 	var (
@@ -33,10 +44,33 @@ func VariableStat() {
 	fmt.Println("e f", e, f) // 0 false
 
 	// := 自动推导声明的类型
-	d1, d2 := "d1", "d2" // 根据值类型 自动推导变量类型
-	fmt.Println(d1, d2)
-	m3, n3, q3 := 10, "n2", 30 // 自动推导类型，并初始化值
-	fmt.Println(m3, n3, q3)
+	m1, m2 := "m1", "m2" // 根据值类型 自动推导变量类型
+	fmt.Println(m1, m2)
+	f1, f2, f3 := 10, "n2", 30 // 自动推导类型，并初始化值
+	fmt.Println(f1, f2, f3)
+
+	// 变量值互换
+	var m = 15
+	var n = 20
+	m, n = n, m // 直接将m与n的值互换
+	fmt.Println("m,n", m, n)
+
+	var n1, n2 = 22, 25 // 两者
+	var temp int
+	temp, _ = n1, n2 // 将n1的值赋值给temp，_表示丢弃变量n2
+	fmt.Println("temp", temp)
+
+	// 丢弃变量
+	_, ee := 35, 36 // 将值36赋值给ee，并同时丢弃35值
+	fmt.Println("ee", ee)
+
+	//:= 声明注意事项
+	num1, num2 := test()
+	fmt.Println(num1, num2)
+}
+
+func test() (a, b int) { // 函数名
+	return 1, 2
 }
 
 func IsIota() [10]int {

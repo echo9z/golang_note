@@ -1,8 +1,8 @@
 package utils
 
 import "fmt"
-import t "golang/notes/02-basegra/test"
-import ser "golang/notes/02-basegra/test/ser"
+import t "basegra/test"
+import ser "basegra/test/ser"
 
 func GoRun() {
 	fmt.Println("go run")

@@ -1,9 +1,9 @@
 package test
 
 import (
+	test "basegra/test/internal/ser"
+	ser "basegra/test/ser"
 	"fmt"
-	test "golang/notes/02-basegra/test/internal/ser"
-	ser "golang/notes/02-basegra/test/ser"
 )
 
 func TheTest() {
