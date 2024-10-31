@@ -3,13 +3,12 @@ package main
 // import "golang/notes/02-basegra/utils" // 默认导入
 // import utils "golang/notes/02-basegra/utils" // 别名导入
 import (
+	base "basegra/base"
+	mymathc "basegra/mymath"
 	_ "basegra/test" // 下划线表示匿名导入
 	u "basegra/utils"
 	"fmt"
 	"math"
-)
-import (
-	base "basegra/base"
 )
 
 /**
@@ -48,4 +47,8 @@ func main() {
 	fmt.Println("格式化输出")
 	base.Format()
 
+	u.Coding("hello")
+
+	var z float64 = mymathc.Sqrt(0.2)
+	fmt.Println(z)
 }

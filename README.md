@@ -71,8 +71,66 @@ source ~/.bash_profile
 go version
 
 # 查看go环境配置
-go env 
+go env
+GO111MODULE='on'  # 开启mod模式
+GOARCH='amd64'
+GOBIN=''
+GOCACHE='/home/echo9z/.cache/go-build'
+GOENV='/home/echo9z/.config/go/env'
+GOEXE=''
+GOEXPERIMENT=''
+GOFLAGS=''
+GOHOSTARCH='amd64'
+GOHOSTOS='linux'
+GOINSECURE=''
+GOMODCACHE='/home/echo9z/go/pkg/mod'
+GONOPROXY=''
+GONOSUMDB=''
+GOOS='linux'
+GOPATH='/home/echo9z/go' # golang中的默认工作路径
+GOPRIVATE=''
+GOPROXY='https://goproxy.cn,direct' # 获取go相关包的代理地址
+GOROOT='/home/echo9z/.g/go'
+GOSUMDB='sum.golang.org'
+GOTMPDIR=''
+GOTOOLCHAIN='auto'
+GOTOOLDIR='/home/echo9z/.g/go/pkg/tool/linux_amd64'
+GOVCS=''
+GOVERSION='go1.23.1' # goland的版本
+GODEBUG=''
+GOTELEMETRY='local'
+GOTELEMETRYDIR='/home/echo9z/.config/go/telemetry'
+GCCGO='gccgo'
+GOAMD64='v1'
+AR='ar'
+CC='gcc'
+CXX='g++'
+CGO_ENABLED='1'
+GOMOD='/dev/null'
+GOWORK=''
+CGO_CFLAGS='-O2 -g'
+CGO_CPPFLAGS=''
+CGO_CXXFLAGS='-O2 -g'
+CGO_FFLAGS='-O2 -g'
+CGO_LDFLAGS='-O2 -g'
+PKG_CONFIG='pkg-config'
+GOGCCFLAGS='-fPIC -m64 -pthread -Wl,--no-gc-sections -fmessage-length=0 -ffile-prefix-map=/tmp/go-build2405391928=/tmp/go-build -gno-record-gcc-switches'
 ```
+
+安装目录`$GOROOT`，如下目录：
+>`/bin`：包含可执行文件，如：编译器，Go 工具
+>`/doc`：包含示例程序，代码工具，本地文档等
+>`/lib`：包含文档模版
+>`/misc`：包含与支持 Go 编辑器有关的配置文件以及 cgo 的示例
+>`/pkg`：包含编译后生成的文件（比如：.a）
+>`/src`：包含源代码构建脚本和标准库的包的完整源代码（Go 是一门开源语言）
+>`/src/cmd`：包含 Go 和 C 的编译器和命令行脚本
+
+### Go 运行时（runtime）
+runtime 类似 Java 和 .NET 语言所用到的虚拟机，它负责管理包括内存分配、垃圾回收（第 11.8 节）、栈处理、goroutine、channel、切片（slice）、map 和反射（reflection）等等。
+
+runtime 主要由 C 语言编写（自 Go 1.5 起开始自举），并且是每个 Go 包的最顶级包。你可以在目录 $GOROOT/src/runtime 中找到相关内容。
+
 
 ### 开发工具推荐
 
@@ -779,19 +837,19 @@ func Bitwise() {
 
 表列举了Go语言支持的所有赋值运算符及其含义。
 
-| 赋值运算符 | 含 义                                                        |
-| ---------- | ------------------------------------------------------------ |
-| =          | 直接将运算符右侧的值赋给左侧的变量或表达式                   |
-| +=         | 先将运算符左侧的值与右侧的值相加，再将相加和赋给左侧的变量或表达式 |
-| -=         | 赋给左侧的变量或表达式侧的值相减，再将相减差赋给左侧的变量或表达式 |
-| *=         | 先将运算符左侧的值与右侧的值相乘，再将相乘结果赋给左侧的变量或表达式 |
-| /=         | 先将运算符左侧的值与右侧的值相除，再将相除结果赋给左侧的变量或表达式 |
-| %=         | 先将运算符左侧的值与右侧的值相除取余数，再将余数赋给左侧的变量或表达式 |
-| <<=        | 先将运算符左侧的值按位左移右侧数值指定数量的位置，再将位移后的结果赋给左侧的变量或表达式 |
-| >>=        | 先将运算符左侧的值按位右移右侧数值指定数量的位置，再将位移后的结果赋给左侧的变量或表达式 |
-| &=         | 先将运算符左侧的值与右侧的值按位与，再将位运算后的结果赋给左侧的变量或表达式 |
-| \|=        | 先将运算符左侧的值与右侧的值按位或，再将位运算后的结果赋给左侧的变量或表达式 |
-| ^=         | 先将运算符左侧的值与右侧的值按位异或，再将位运算后的结果赋给左侧的变量或表达式 |
+| 赋值运算符 | 含 义                                          |
+| ----- | -------------------------------------------- |
+| =     | 直接将运算符右侧的值赋给左侧的变量或表达式                        |
+| +=    | 先将运算符左侧的值与右侧的值相加，再将相加和赋给左侧的变量或表达式            |
+| -=    | 赋给左侧的变量或表达式侧的值相减，再将相减差赋给左侧的变量或表达式            |
+| *=    | 先将运算符左侧的值与右侧的值相乘，再将相乘结果赋给左侧的变量或表达式           |
+| /=    | 先将运算符左侧的值与右侧的值相除，再将相除结果赋给左侧的变量或表达式           |
+| %=    | 先将运算符左侧的值与右侧的值相除取余数，再将余数赋给左侧的变量或表达式          |
+| <<=   | 先将运算符左侧的值按位左移右侧数值指定数量的位置，再将位移后的结果赋给左侧的变量或表达式 |
+| >>=   | 先将运算符左侧的值按位右移右侧数值指定数量的位置，再将位移后的结果赋给左侧的变量或表达式 |
+| &=    | 先将运算符左侧的值与右侧的值按位与，再将位运算后的结果赋给左侧的变量或表达式       |
+| \|=   | 先将运算符左侧的值与右侧的值按位或，再将位运算后的结果赋给左侧的变量或表达式       |
+| ^=    | 先将运算符左侧的值与右侧的值按位异或，再将位运算后的结果赋给左侧的变量或表达式      |
 
 ```go
 // ASS 赋值运算
@@ -1159,3 +1217,16 @@ t1 = complex(2.1,3.14) // 结果同上
 fmt.Println(real(t))   // 实部：2.1
 fmt.Println(imag(t))   // 虚部：3.14
 ```
+
+##### NaN非数
+在进行科学计算或浮点数计算时，会遇到特殊情况，比如除 0 错误、无限大以及无定义值等等。这时候，NaN（Not a Number）的概念就应运而生了。NaN 是一个数学术语，表示一个无法表示或计算的值，或者是一个无法定义的数。有些时候，需要在程序中使用 NaN 来表示一些特殊值。
+
+```go
+var n float64  
+fmt.Println("NaN：", n, -n, 1/n, -1/n, n/n) // 0 -0 +Inf -Inf NaN
+```
+
+- 而在 Golang 的 math 包中，提供`math.NaN()`函数
+- `math.NaN()`函数返回一个 NaN 值，该函数的返回值类型为 float64
+
+

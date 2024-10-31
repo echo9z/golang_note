@@ -29,9 +29,9 @@ func NumberDataType() {
 	var n2 uint = 12
 	fmt.Println("size", unsafe.Sizeof(n1)) // 查看字节数方法
 	fmt.Println(n1, n2)
-	//var a int = 12
-	//var b int32 = 61
-	//c := a + b // 不同类型，不允许互相赋值或操作
+	// var a int = 12
+	// var b int32 = 61
+	// c := a + b // 不同类型，不允许互相赋值或操作
 
 	// 浮点
 	var f32 float32 = 12.6
@@ -71,6 +71,9 @@ func NumberDataType() {
 	const MaxThread = 1000
 	fmt.Println("常量：", Pi, MaxThread)
 
+	// NaN非数
+	var n float64
+	fmt.Println("NaN：", n, -n, 1/n, -1/n, n/n) // 0 -0 +Inf -Inf NaN
 }
 
 // 格式化输出
