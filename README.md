@@ -101,7 +101,7 @@ GODEBUG=''
 GOTELEMETRY='local'
 GOTELEMETRYDIR='/home/echo9z/.config/go/telemetry'
 GCCGO='gccgo'
-GOAMD64='v1'
+GOAMD64='v1' # 控制编译器生成的代码中使用哪些特定于 AMD64 架构指令集扩展的环境变量。
 AR='ar'
 CC='gcc'
 CXX='g++'
@@ -1226,7 +1226,20 @@ var n float64
 fmt.Println("NaN：", n, -n, 1/n, -1/n, n/n) // 0 -0 +Inf -Inf NaN
 ```
 
-- 而在 Golang 的 math 包中，提供`math.NaN()`函数
-- `math.NaN()`函数返回一个 NaN 值，该函数的返回值类型为 float64
+`math.NaN()`函数返回一个 NaN 值，该函数的返回值类型为 float64。使用 math.NaN() 函数取得一个 NaN 值，利用该值进行特殊计算。比如：通过比较 NaN 和任何值，得到的结果都是 false。
 
+``` go
+var x, y float64  
+x = math.NaN() // 返回一个Nan值  
+y = 10.36  
+fmt.Println(x == y) // false  
+fmt.Println(x == x) // false  
+fmt.Println(y == y) // true
 
+z := x + y          // 进行数值计算，返回NaN  
+fmt.Println(z)
+```
+
+可以看到，只有比较同一变量时结果才是 true，而与 NaN 值比较时则永远为 false。同时将 x 和 y 相加，赋值给变量 z 输出结果为 NaN。
+
+##### 字符

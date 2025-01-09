@@ -74,6 +74,23 @@ func NumberDataType() {
 	// NaN非数
 	var n float64
 	fmt.Println("NaN：", n, -n, 1/n, -1/n, n/n) // 0 -0 +Inf -Inf NaN
+	var x, y float64
+	x = math.NaN() // 返回一个Nan值
+	y = 10.36
+	fmt.Println(x == y) // false
+	fmt.Println(x == x) // false
+	fmt.Println(y == y) // true
+	z := x + y          // 进行数值计算，返回NaN
+	fmt.Println(z)      // 返回NaN
+
+	// 字符
+	var c1 byte = 'A' // 65
+	var c2 byte = '0' // 48
+	fmt.Println("c1:", c1)
+	fmt.Println("c2:", c2)
+
+	var c3 byte = '中' // ‘中’的unicode码为20013，byte为uint8，取值范围为0-255
+	fmt.Println("c3:", c3)
 }
 
 // 格式化输出
