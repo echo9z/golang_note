@@ -197,7 +197,227 @@ $ go env -w GOPROXY=https://goproxy.cn,direct
 `“direct” `是一个特殊指示符，用于指示 Go 回源到模块版本的源地址去抓取（比如 GitHub 等），场景如下：当值列表中上一个 Go 模块代理返回 404 或 410 错误时，Go 自动尝试列表中的下一个，遇见 `“direct” `时回源，也就是回到源地址去抓取，而遇见 EOF 时终止并抛出类似 “invalid version: unknown revision...” 的错误。
 
 ### GOSUMDB
-它的值是一个 Go checksum database，用于在拉取模块版本时（无论是从源站拉取还是通过 Go module proxy 拉取）保证拉取到的模块版本数据未经过篡改，若发现不一致，也就是可能存在篡改，将会立即中止。
+`GOSUMDB` 环境变量的作用是管理和配置 **模块校验和数据库（Checksum Database）**。校验和数据库的，目的是用来验证 Go 模块的完整性和来源，确保模块没有被篡改或破坏，从而提供一个安全的依赖管理机制。
+
+当你拉取某个 Go 模块（论是从源站拉取还是通过 Go module proxy 拉取，如第三方库）时，`GOSUMDB` 会从校验和数据库中获取该模块的校验和，并与本地 `go.sum` 文件中的记录进行对比。如果校验和不一致，Go 会抛出错误，提示模块可能被篡改或下载异常，会立即中止。
+
+GOSUMDB 的默认值为：`sum.golang.org`，是官方提供可信的校验和数据库。由于国内网络无法访问的，但是 GOSUMDB 可以被 Go 模块代理所代理（详见：Proxying a Checksum Database）。
+
+另外若对 GOSUMDB 的值有自定义需求，其支持如下格式：
+- 格式 1：`<SUMDB_NAME>+<PUBLIC_KEY>`。
+- 格式 2：`<SUMDB_NAME>+<PUBLIC_KEY> <SUMDB_URL>`。
+也可以将其设置为“off”，也就是禁止 Go 在后续操作中校验模块版本。
+
+**关闭或自定义 GOSUMDB**
+1. **禁用校验和数据库**  
+	如果不需要校验模块（例如使用私有模块），可以将 `GOSUMDB` 设置为 `off`：
+```bash
+GOSUMDB=off
+```
+禁用后，Go 不会对模块的校验和进行验证。
+2. **使用自定义校验和数据库**  
+	需要使用公司内部的校验和数据库，可以将 `GOSUMDB` 设置为自定义的地址：
+```bash
+    GOSUMDB=mychecksumdb.example.com
+```
+
+### GONOPROXY/GONOSUMDB/GOPRIVATE
+这三个环境变量都是用在当前项目依赖了私有模块，例如像是你公司的私有 git 仓库，又或是 github 中的私有库，都是属于私有模块，都是要进行设置的，否则会拉取失败。
+
+**GOPRIVATE**
+
+指定哪些模块是 **私有模块**
+- 对于匹配的私有模块：
+	- 不会通过 `GOPROXY` 的公共代理下载
+	- 不会通过 `GOSUMDB` 校验和数据库进行校验
+- 用于处理公司内部或私有仓库的模块依赖。
+- 默认值: 空，表示所有模块都不是私有模块。
+
+**示例配置**:
+```bash
+GOPRIVATE=*.example.com,gitlab.internal.com
+```
+上述配置表示：
+- 所有`*.example.com` 下的模块，以及 `gitlab.internal.com` 的模块是私有模块。
+- Go 不会从公共代理拉取这些模块，也不会验证它们的校验和。
+
+**GONOPROXY**
+指定那个模块 **不使用代理模式**，而是直接从源头（如 Git 仓库）拉取。
+- 常用于公司内部私有模块仓库。
+- 默认值: 空，表示所有模块都通过代理下载。
+
+**示例配置**:
+```bash
+GONOPROXY=*.example.com
+```
+- 所有 `*.example.com` 的模块不会通过 `GOPROXY` 下载，而是直接从源头（如 Git 仓库）拉取。
+
+**GONOSUMDB**
+指定哪些模块 **跳过校验和验证**。
+- 常用于私有模块，避免与公共校验和数据库（如 `sum.golang.org`）交互。
+- 默认值: 空，表示所有模块都需要校验和验证
+
+**示例配置**:
+```bash
+GONOSUMDB=*.example.com
+```
+- 所有 `*.example.com` 的模块不会经过校验和数据库验证，而是直接信任本地的 `go.sum` 文件。
+
+**综合示例**：
+假设你的项目中有以下私有模块：
+1. `*.example.com` 是公司内部的模块，不走代理，也不进行校验和验证。
+2. `github.com/internal/module` 是公司从 GitHub 托管的私有模块，也需要跳过校验。
+
+```bash
+GOPRIVATE=*.example.com,github.com/internal/module
+GONOPROXY=*.example.com
+GONOSUMDB=*.example.com,github.com/internal/module
+```
+
+### 初始化项目
+
+在完成 Go modules 的开启后，创建一个示例项目来进行演示，执行如下命令：
+```bash
+mkdir ~/Desktop/arc_web
+cd ~/Desktop/arc_web
+```
+
+初始化Go modules模块
+```bash
+go init arc_web
+```
+
+该项目根目录下创建 `main.go`文件，如下：
+```go
+package main  
+
+import (
+    "fmt" 
+    "github.com/fatih/color"
+)
+  
+func main() {  
+    fmt.Println("Hello World!")  
+    color.Green("Hello, Go Modules!")
+}
+```
+
+在项目根目录执行 `go get github.com/fatih/color` 命令，下载`github.com/fatih/color`包模块。
+```bash
+$ go get github.com/fatih/color  
+go: added github.com/fatih/color v1.18.0
+go: added github.com/mattn/go-colorable v0.1.13
+go: added github.com/mattn/go-isatty v0.0.20
+go: added golang.org/x/sys v0.25.0
+```
+
+##### go mod 文件
+
+初始项目时，会生成一个 go.mod 文件，是启用了 Go modules 项目所必须的最重要的标识，描述当前项目（也就是当前模块）的元信息。
+eg:
+```go
+module arc_web  
+  
+go 1.22.1  
+  
+require (  
+    github.com/fatih/color v1.18.0 // indirect  
+    github.com/mattn/go-colorable v0.1.13 // indirect  
+    github.com/mattn/go-isatty v0.0.20 // indirect  
+    golang.org/x/sys v0.25.0 // indirect  
+)
+```
+
+###### require
+`require` 列出当前项目依赖的第三方模块及其版本。
+```go
+require (     
+	github.com/gin-gonic/gin v1.9.0
+	github.com/sirupsen/logrus v1.9.0
+)
+```
+
+- 列出了项目依赖的第三方模块及其版本。这里项目依赖于 Gin 框架和 Logrus 日志库。
+###### exclude
+**`exclude`** 用于在 `go.mod` 文件中排除某些模块的特定版本，防止 Go 工具链下载并使用这些版本。
+语法：
+```go
+exclude <module> <version>
+```
+
+```go
+module arc_web  
+  
+go 1.22.1  
+  
+require (  
+    github.com/fatih/color v1.18.0 // indirect  
+    github.com/mattn/go-colorable v0.1.13 // indirect  
+    github.com/mattn/go-isatty v0.0.20 // indirect  
+    golang.org/x/sys v0.25.0 // indirect  
+)
+
+exclude github.com/fatih/color v1.17.0
+```
+
+- 项目依赖 `color` 的版本 `v1.18.0`。
+- 显式排除了 `v1.17.0`，即使有其他依赖模块试图使用 `v1.8.1`，Go 也不会下载或使用该版本。
+
+排除多个版本
+``` go
+module myproject
+
+go 1.20
+
+require (
+    github.com/gin-gonic/gin v1.9.0
+    github.com/sirupsen/logrus v1.9.0
+)
+
+exclude (
+    github.com/gin-gonic/gin v1.7.7
+    github.com/gin-gonic/gin v1.8.0
+    github.com/sirupsen/logrus v1.8.1
+)
+```
+解析：
+- 明确指定`gin`和`logrus`的排除版本范围。
+- 任何尝试使用`gin`的`v1.7.7`或`v1.8.0`，以及`logrus`的`v1.8.1`的依赖都会被拒绝。
+
+###### replace
+`replace`替换依赖项的路径或版本，将某个依赖模块的路径或版本替换为其他路径或版本。
+语法：
+```go
+replace <module> => <new-module> <new-version>
+```
+
+或者：
+```go
+replace <module> => <local-path>
+```
+示例：
+```go
+replace github.com/gin-gonic/gin v1.8.0 => github.com/gin-gonic/gin v1.9.0
+```
+将 `github.com/example/module` 版本 `v1.8.0` 替换为 `v1.9.0`。
+
+```go
+replace github.com/gin-gonic/gin => ../local-gin
+```
+将 `github.com/gin-gonic/gin` 替换为本地路径 `../local-gin`模块（本地开发常用）
 
 
-
+**go sum 文件**
+```go
+github.com/fatih/color v1.18.0 h1:S8gINlzdQ840/4pfAwic/ZE0djQEH3wM94VfqLTZcOM=  
+github.com/fatih/color v1.18.0/go.mod h1:4FelSpRwEGDpQ12mAdzqdOukCy4u8WUtOY6lkT/6HfU=  
+github.com/mattn/go-colorable v0.1.13 h1:fFA4WZxdEF4tXPZVKMLwD8oUnCTTo08duU7wxecdEvA=  
+github.com/mattn/go-colorable v0.1.13/go.mod h1:7S9/ev0klgBDR4GtXTXX8a3vIGJpMovkB8vQcUbaXHg=  
+github.com/mattn/go-isatty v0.0.16/go.mod h1:kYGgaQfpe5nmfYZH+SKPsOc2e4SrIfOl2e/yFXSvRLM=  
+github.com/mattn/go-isatty v0.0.20 h1:xfD0iDuEKnDkl03q4limB+vH+GxLEtL/jb4xVJSWWEY=  
+github.com/mattn/go-isatty v0.0.20/go.mod h1:W+V8PltTTMOvKvAeJH7IuucS94S2C6jfK/D7dTCTo3Y=  
+golang.org/x/sys v0.0.0-20220811171246-fbc7d0a398ab/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=  
+golang.org/x/sys v0.6.0/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=  
+golang.org/x/sys v0.25.0 h1:r+8e+loiHxRqhXVl6ML1nO3l1+oFoWbnlu2Ehimmi34=  
+golang.org/x/sys v0.25.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
+```
