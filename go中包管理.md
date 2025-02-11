@@ -328,7 +328,7 @@ require (
 )
 ```
 
-###### require
+###### 1.require
 `require` 列出当前项目依赖的第三方模块及其版本。
 ```go
 require (     
@@ -337,8 +337,8 @@ require (
 )
 ```
 
-- 列出了项目依赖的第三方模块及其版本。这里项目依赖于 Gin 框架和 Logrus 日志库。
-###### exclude
+- 列出项目依赖的第三方模块及其版本。这里项目依赖于 Gin 框架和 Logrus 日志库。
+###### 2.exclude
 **`exclude`** 用于在 `go.mod` 文件中排除某些模块的特定版本，防止 Go 工具链下载并使用这些版本。
 语法：
 ```go
@@ -384,7 +384,7 @@ exclude (
 - 明确指定`gin`和`logrus`的排除版本范围。
 - 任何尝试使用`gin`的`v1.7.7`或`v1.8.0`，以及`logrus`的`v1.8.1`的依赖都会被拒绝。
 
-###### replace
+###### 3.replace
 `replace`替换依赖项的路径或版本，将某个依赖模块的路径或版本替换为其他路径或版本。
 语法：
 ```go
@@ -406,8 +406,58 @@ replace github.com/gin-gonic/gin => ../local-gin
 ```
 将 `github.com/gin-gonic/gin` 替换为本地路径 `../local-gin`模块（本地开发常用）
 
+###### 4.注意事项
+1. **`replace` 的作用范围**：  
+   - 仅对当前模块生效，不会影响其他模块。
+   - 如果依赖链中的其他模块也使用 `replace`，可能会覆盖当前配置。
 
-**go sum 文件**
+2. **`exclude` 的优先级**：  
+   - 如果多个模块排除同一版本，最终会选择一个未被排除的版本。
+   - 若所有版本均被排除，会导致构建失败。
+
+3. **临时性与长期性**：  
+   - `replace` 通常是临时解决方案，长期应推动依赖库修复问题。
+   - `exclude` 需谨慎使用，可能破坏依赖关系。
+
+###### 5.完整示例
+结合 `replace` 和 `exclude` 的 `go.mod` 文件示例：
+```go
+module myproject
+
+go 1.20
+
+require (
+    github.com/gin-gonic/gin v1.9.0
+    github.com/sirupsen/logrus v1.9.0
+)
+
+// 替换依赖为本地路径
+replace github.com/sirupsen/logrus => ../local-logrus
+// 替换依赖为 Fork 后的仓库
+replace github.com/buggy/module => github.com/your-fork/module v1.2.3
+
+exclude (
+    github.com/gin-gonic/gin v1.7.7
+    github.com/gin-gonic/gin v1.8.0
+    github.com/sirupsen/logrus v1.8.1
+)
+```
+
+**require**  
+列出项目所依赖的模块及其版本：
+- 使用 Gin 框架 `github.com/gin-gonic/gin` 版本 `v1.9.0`
+- 使用 Logrus 日志库 `github.com/sirupsen/logrus` 版本 `v1.9.0`
+**replace**  
+- 将 `github.com/sirupsen/logrus` 的依赖替换为本地路径 `../local-logrus`，方便在本地调试或使用自定义版本。路径相对于 `go.mod` 文件所在目录。
+- 将 `replace github.com/buggy/module` 依赖替换为fork后 `github.com/your-fork/module v1.2.3`版本依赖
+**exclude**  
+- 排除 `github.com/gin-gonic/gin` 模块 `v1.8.0 v1.7.7` 版本。
+- 排除 `github.com/sirupsen/logrus`模块 `v1.8.1` 版本
+- 即使有间接依赖试图使用该版本，Go 工具链也会拒绝下载和使用它，从而确保项目使用正确的版本。
+
+##### go sum 文件
+在第一次拉取模块依赖后，会创建一个 go.sum 文件，其详细罗列了当前项目直接或间接依赖的所有模块版本，并写明了那些模块版本的 SHA-256 哈希值以备 Go 在今后的操作中保证项目所依赖的那些模块版本不会被篡改。
+
 ```go
 github.com/fatih/color v1.18.0 h1:S8gINlzdQ840/4pfAwic/ZE0djQEH3wM94VfqLTZcOM=  
 github.com/fatih/color v1.18.0/go.mod h1:4FelSpRwEGDpQ12mAdzqdOukCy4u8WUtOY6lkT/6HfU=  
@@ -421,3 +471,70 @@ golang.org/x/sys v0.6.0/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 golang.org/x/sys v0.25.0 h1:r+8e+loiHxRqhXVl6ML1nO3l1+oFoWbnlu2Ehimmi34=  
 golang.org/x/sys v0.25.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
 ```
+
+每一行的格式：
+```go
+<模块路径> <版本> <校验和类型>:<校验和值>
+```
+
+- **模块路径**：依赖的模块名，例如 `github.com/gin-gonic/gin`。
+- **版本**：模块的版本号，例如 `v1.9.0`。
+- **校验和类型**：目前 Go 使用 `h1` 表示基于 SHA-256 的校验和（哈希值）。
+- **校验和值**：经过 Base64 编码的哈希值，用于验证模块内容的完整性。
+
+``` go
+github.com/gin-gonic/gin v1.9.0 h1:9kDxQ37l1Ow8K8zKb1gLjkPrZV1sSd6HnAHO6q/B2zY=
+github.com/gin-gonic/gin v1.9.0/go.mod h1:yyZ1oYITZFm4+AGuAGDDeL9T3rqv6JLCcaxDJ2Zv0Wk=
+```
+h1 hash 是 Go modules 将目标模块版本的 zip 文件打开包后，针对所有包内文件依次进行 hash，然后再把它们的 hash 结果按照固定格式和算法组成总的 hash 值。
+
+第一行：
+```go
+github.com/gin-gonic/gin v1.9.0 h1:9kDxQ37l1Ow8K8zKb1gLjkPrZV1sSd6HnAHO6q/B2zY=
+```
+- 表示 Gin 模块版本 v1.9.0 的内容经过 SHA-256 哈希后得到的校验和值。
+
+第二行：
+```go
+github.com/gin-gonic/gin v1.9.0/go.mod h1:yyZ1oYITZFm4+AGuAGDDeL9T3rqv6JLCcaxDJ2Zv0Wk=
+```
+- 表示 Gin 模块版本 v1.9.0 的 go.mod 文件的内容校验和值。
+
+而 h1 hash 和 go.mod hash 两者，要么同时都存在，要么只存在 go.mod hash。那什么情况下，会不存在 h1 hash 呢？就当 Go 认为肯定用不到某个模块版本的时候就会省略它的 h1 hash，就会出现不存一个简化的例子说明在 h1 hash，只存在 go.mod hash 的情况。
+
+###### **只存在 go.mod hash 示例**
+假设你的项目依赖于模块 `github.com/foo/bar` 的某个版本，但你的代码中没有直接导入该模块的任何包，而只是通过其他依赖间接使用它。也就是说，在你的 `go.mod` 文件中，`github.com/foo/bar` 被标记为 **indirect**（间接依赖）。在这种情况下，Go 工具链为了解析依赖关系，只需要下载该模块的 `go.mod` 文件来确定版本和依赖约束，而不必下载整个模块的源码文件（zip 文件）。
+
+因此，在 `go.sum` 文件中，会记录该模块的 `go.mod` 文件的校验和（带 `/go.mod` 后缀），而不会记录整个模块内容的 h1 哈希。
+
+**1. go.mod 文件**
+假设你的项目的 `go.mod` 文件如下：
+```go
+module github.com/example/myproject
+
+go 1.20
+
+require (
+    // 作为间接依赖存在
+    github.com/foo/bar v1.2.3 // indirect
+)
+```
+
+这里，由于 `github.com/foo/bar` 只是间接依赖（项目代码中并未直接使用它），所以 Go 工具链在构建时只需要解析该模块的 `go.mod` 文件，而不需要下载整个模块的源码。
+
+**2. go.sum 文件**
+经过 `go mod tidy` 或构建操作后，生成的 `go.sum` 文件中，关于 `github.com/foo/bar` 的记录可能只包含如下条目：
+
+```go
+github.com/foo/bar v1.2.3/go.mod h1:XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX=`
+```
+而不会出现类似下面的条目：
+
+```go
+github.com/foo/bar v1.2.3 h1:YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY=`
+```
+---
+**解释说明**
+**存在 only go.mod hash 的原因**：  
+当 Go 工具链发现某个模块（例如 `github.com/foo/bar v1.2.3`）在编译过程中不会被直接使用（即没有实际导入模块内的包），它只需要该模块的 `go.mod` 文件来解析版本依赖和模块间关系。  
+因此，为了节省下载和处理时间，Go 只会下载并校验该模块的 `go.mod` 文件，从而在 `go.sum` 中只记录了 `github.com/foo/bar v1.2.3/go.mod` 的校验和，而不会记录整个模块内容的 h1 hash。
