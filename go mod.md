@@ -18,7 +18,7 @@ drwxr-xr-x 1 echo9z echo9z 42 12月26日 10:53 src #存放由go install命令生
 GOPATH目录下一共包含了三个子目录，分别是：
 - bin：存储所编译生成的二进制文件。
 - pkg：存储预编译的目标文件，以加快程序的后续编译速度。
-- src：存储所有`.go`文件或源代码。在编写 Go 应用程序，程序包和库时，一般会以`$GOPATH/src/`的路径进行存放。
+- src：存储所有`.go`文件或源代码。在编写 Go 应用程序，程序包和库时，一般会以`$GOPATH/src/github/xxx`的路径进行存放。
 ```
 go
 ├── bin
@@ -131,7 +131,7 @@ amd64
 - 其他人运行你的开发的程序时，无法保证下载的包版本是你所期望的版本，当对方使用了其他版本，有可能导致程序无法正常运行
 - 在本地，一个包只能保留一个版本，意味着你在本地开发的所有项目，都得用同一个版本的包，这几乎是不可能的。
 
-## vendor 模式
+## Vendor 模式
 为了解决 GOPATH 方案下不同项目下无法使用多个版本库的问题，Go v1.5 开始支持 vendor ，实现同一个包在不同项目中不同版本、以及无相互侵入的开发和管理。
 
 由于所有项目共享同一个 `GOPATH/src`，不同项目可能需要同一个依赖包的不同版本，这会导致冲突。例如：
@@ -162,16 +162,31 @@ amd64
 ### mod提供的命令
 在 Go modules 中，我们能够使用如下命令进行操作：
 
-| 命令              | 作用                   |
-| --------------- | -------------------- |
-| go mod init     | 生成 go.mod 文件         |
-| go mod download | 下载 go.mod 文件中指明的所有依赖 |
-| go mod tidy     | 整理现有的依赖              |
-| go mod graph    | 查看现有的依赖结构            |
-| go mod edit     | 编辑 go.mod 文件         |
-| go mod vendor   | 导出项目所有的依赖到vendor目录   |
-| go mod verify   | 校验一个模块是否被篡改过         |
-| go mod why      | 查看为什么需要依赖某模块         |
+| 命令                 | 作用                                                                                                                                                                                                     |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| go mod help        | 查看帮助信息                                                                                                                                                                                                 |
+| go mod init        | 初始化当前文件夹，生成 go.mod 文件                                                                                                                                                                                  |
+| go mod download    | 下载 go.mod 文件中指明的所有依赖到本地（默认为 `$GOPATH/pkg/mod` 目录）增加 `-x` 参数 `go mod download -x` 会打印下载信息；`go mod download -json` 用来查看模块下载的 zip 存放位置，以及解压后的位置；                                                          |
+| go mod tidy        | 整理现有的依赖，执行时会把未使用的 module 移除掉，同时也会增加缺少的包                                                                                                                                                                |
+| go mod graph       | 查看现有的依赖结构图                                                                                                                                                                                             |
+| go mod edit        | 编辑 go.mod 文件，比如修改项目中使用的 go 版本 `go mod edit -go=1.17`                                                                                                                                                   |
+| go mod vendor      | 导出项目所有的依赖到 vendor 目录（需要执行 go build -mod=vendor 才可以使用 vendor 作为依赖来编译，但是在 v1.14 及以后的版本中，如果 golang 项目根目录下存在 vendor 目录，go build 命令会默认优先基于 vendor 目录缓存的三方依赖包构建 golang 程序，除非我们在 go build 命令后面加上 -mod=mod 参数） |
+| go mod verify      | 校验一个模块是否被篡改过，校验从 GOPROXY 服务器上下载的 zip 文件与 GOSUMDB 服务器下载下来的哈希值，是否匹配。                                                                                                                                     |
+| go mod why         | 查看为什么需要依赖某模块，比如 `go mod why gopkg.in/yaml.v2 gopkg.in/yaml.v3`                                                                                                                                         |
+| go clean -modcache | 可以清空本地下载的 Go Modules 缓存 （会清空 `$GOPATH/pkg/mod` 目录）                                                                                                                                                     |
+
+### mod 提供环境变量
+在 Go modules 中有如下常用环境变量，通过 `go env` 命令来进行查看，如下：
+```bash
+$ go env
+
+GO111MODULE="on"
+GOPROXY="https://goproxy.cn,direct"
+GOSUMDB="sum.golang.org"
+GONOPROXY=""
+GONOSUMDB=""
+GOPRIVATE=""
+```
 
 ### GO111MODULE
 go modules 在 v1.11 版本正式推出，在最新发布的 v1.13 版本中，默认将`GO111MODULE`
@@ -192,7 +207,14 @@ $ go env -w GO111MODULE="on"
 
 GOPROXY 的默认值是：`https://proxy.golang.org,direct`，`proxy.golang.org` 在国内是无法访问的，因此在下载Go模块包直接卡住，所以你必须在开启 Go modules 的时，同时设置国内的 Go 模块代理：
 ```bash
-$ go env -w GOPROXY=https://goproxy.cn,direct
+# 1. 七牛 CDN
+$ go env -w  GOPROXY=https://goproxy.cn,direct
+
+# 2. 阿里云
+$ go env -w GOPROXY=https://mirrors.aliyun.com/goproxy/,direct
+
+# 3. 官方
+$ go env -w  GOPROXY=https://goproxy.io,direct
 ```
 `“direct” `是一个特殊指示符，用于指示 Go 回源到模块版本的源地址去抓取（比如 GitHub 等），场景如下：当值列表中上一个 Go 模块代理返回 404 或 410 错误时，Go 自动尝试列表中的下一个，遇见 `“direct” `时回源，也就是回到源地址去抓取，而遇见 EOF 时终止并抛出类似 “invalid version: unknown revision...” 的错误。
 
@@ -312,9 +334,17 @@ go: added golang.org/x/sys v0.25.0
 ```
 
 ##### go mod 文件
+- module：用于定义当前项目的模块路径。
+- go：用于标识当前模块的 Go 语言版本，值为初始化模块时的版本。
+- require：用于设置一个特定的模块版本。
+- exclude：用于从使用中排除一个特定的模块版本。
+- replace：用于将一个模块版本替换为另外一个模块版本。
 
 初始项目时，会生成一个 go.mod 文件，是启用了 Go modules 项目所必须的最重要的标识，描述当前项目（也就是当前模块）的元信息。
-eg:
+eg:T是前世界标准时，UTC是现世界标准时。
+UTC 比 GMT更精准，以原子时计时，适应现代社会的精确计时。
+但在不需要精确到秒的情况下，二者可以视为等同。
+每年格林尼治天文台会发调时信息，基于UTC。
 ```go
 module arc_web  
   
@@ -503,7 +533,7 @@ github.com/gin-gonic/gin v1.9.0/go.mod h1:yyZ1oYITZFm4+AGuAGDDeL9T3rqv6JLCcaxDJ2
 而 h1 hash 和 go.mod hash 两者，要么同时都存在，要么只存在 go.mod hash。那什么情况下，会不存在 h1 hash 呢？就当 Go 认为肯定用不到某个模块版本的时候就会省略它的 h1 hash，就会出现不存一个简化的例子说明在 h1 hash，只存在 go.mod hash 的情况。
 
 ###### **只存在 go.mod hash 示例**
-假设你的项目依赖于模块 `github.com/foo/bar` 的某个版本，但你的代码中没有直接导入该模块的任何包，而只是通过其他依赖间接使用它。也就是说，在你的 `go.mod` 文件中，`github.com/foo/bar` 被标记为 **indirect**（间接依赖）。在这种情况下，Go 工具链为了解析依赖关系，只需要下载该模块的 `go.mod` 文件来确定版本和依赖约束，而不必下载整个模块的源码文件（zip 文件）。
+假设你的项目依赖于模块 `github.com/foo/bar` 的某个版本，但你的代码中没有直接导入该模块的任何包，而只是通过其他依赖间接使用它。也就是说，在你的 `go.mod` 文件中，`github.com/foo/bar` 被标记为 **indirect**（间接依赖）。在这种情况下，Go 工具链为了解析依赖关系，只需要下载该模块的 `go.mod` 文件来确定版本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和依赖约束，而不必下载整个模块的源码文件（zip 文件）。
 
 因此，在 `go.sum` 文件中，会记录该模块的 `go.mod` 文件的校验和（带 `/go.mod` 后缀），而不会记录整个模块内容的 h1 哈希。
 
@@ -533,8 +563,88 @@ github.com/foo/bar v1.2.3/go.mod h1:XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX=
 ```go
 github.com/foo/bar v1.2.3 h1:YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY=`
 ```
----
+
 **解释说明**
 **存在 only go.mod hash 的原因**：  
 当 Go 工具链发现某个模块（例如 `github.com/foo/bar v1.2.3`）在编译过程中不会被直接使用（即没有实际导入模块内的包），它只需要该模块的 `go.mod` 文件来解析版本依赖和模块间关系。  
 因此，为了节省下载和处理时间，Go 只会下载并校验该模块的 `go.mod` 文件，从而在 `go.sum` 中只记录了 `github.com/foo/bar v1.2.3/go.mod` 的校验和，而不会记录整个模块内容的 h1 hash。
+
+#### 查看全局缓存
+将 `github.com/fatih/color` 模块拉取至本地，其拉取的结果缓存在 `$GOPATH/pkg/mod` 和`$GOPATH/pkg/sumdb` 目录下，而在`mod`目录下会以 `github.com/foo/bar` 的格式进行存放，如下：
+```bash
+$ tree . -L 1
+.
+├── cache
+├── github.com
+├── golang.org
+├── go.lsp.dev
+├── google.golang.org
+... ...
+```
+
+需要注意的是同一个模块版本的数据只缓存一份，所有其它模块共享使用。如果你希望清理所有已缓存的模块版本数据，可以执行 `go clean -modcache` 命令。
+
+### Modules 下的 go get 行为
+在 Go Modules 中，`go get` 的拉取过程被分为三个主要步骤：**Finding**（发现）、**Downloading**（下载）和 **Extracting**（提取）。
+
+```go
+❯ go get github.com/echo9z/goutl 
+go: downloading github.com/echo9z/goutl v0.0.0-20250220055007-9ffbc80b86c3
+go: added github.com/echo9z/goutl v0.0.0-20250220055007-9ffbc80b86c3
+```
+
+```go
+v0.0.0-20250220055007-9ffbc80b86c3
+```
+- 版本信息 `v0.0.0`
+- 所拉取版本的commit时间（以UTC时区为准）`20250220055007`
+- 所拉取版本的commit哈希 `9ffbc80b86c3`
+
+**Finding**（发现）：
+`go get` 命令的第一步，目的是确定需要拉取的模块及版本信息。
+- Go 工具链根据 `go.mod` 文件中的依赖信息，查找所需的模块版本。访问 GoProxy 或者直接查询模块仓库（如 GitHub、GitLab 等）来确定模块的确切位置和版本。
+
+例如：`go get github.com/echo9z/goutl`，Go工具链会确认模块的仓库 URL 和版本信息，如果模块仓库没有发布`releases tag`版本，默认版本为v0.0.0。
+
+**Downloading**（下载）：
+`go get` 命令的第二步，目的是下载所需的模块及其版本。
+- 一旦 Go 确认了模块和版本，工具链会开始从模块仓库或 Go Proxy 下载所需的代码（通常是压缩的 `.zip` 文件）到本地的缓存中。
+- 下载的模块通常存储在 `GOPATH/pkg/mod` 目录下（Go Modules 模式下）。
+
+例如：运行`go get github.com/echo9z/goutl`，通过 Go Proxy 或直接从模块仓库下载 `.zip` 文件。从 `https://proxy.golang.org` 或直接从 `github.com/echo9z/goutl` 下载模块，当模块没有release版本，默认版本为 `v0.0.0`，将模块缓存至`GOPATH/pkg/mod`。
+
+ **Extracting**（提取）：
+`go get` 命令的第三步，提取下载的模块文件，解压并准备以供编译使用。
+- 下载的模块会被解压并存储在本地缓存中，位于 `GOPATH/pkg/mod` 目录下。Go 会提取并解析模块内的文件，以便在项目中使用。
+- `go.mod` 文件中指定的版本会被正确提取，并且所有相关的依赖关系也会一起被提取和解析。
+
+例如：下载了 `github.com/echo9z/goutl` 模块，go会解压该模块的 `.zip` 文件。将文件提取到本地的 `GOPATH/pkg/mod/github.com/echo9z/goutl@v0.0.0-20250220055007-9ffbc80b86c3` 目录下。将模块下的源码文件、`go.mod` 文件和其他相关资源都会被提取并准备好，以便在其他项目中编译使用。
+
+### go get 拉取命令
+> 下载的模块存放于 `$GOPATH/pkg/mod` 目录中
+
+| 命令               | 作用                                                           |
+| ---------------- | ------------------------------------------------------------ |
+| go get           | 拉取依赖，会进行指定性拉取（更新），并不会更新所依赖的其它模块。（如果本地已存在要下载的包，将会直接使用本地已存在的包） |
+| go get -u        | 更新现有的依赖，会强制更新它所依赖的其它全部模块，不包括自身。                              |
+| go get -u -t ./… | 更新所有直接依赖和间接依赖的模块版本，包括单元测试中用到的。                               |
+
+选择具体版本应当如何执行呢，如下：
+
+| 命令                              | 作用                                         |
+| ------------------------------- | ------------------------------------------ |
+| go get golang.org/x/test@latest | 拉取最新的版本，若存在 tag，则优先使用。                     |
+| go get golang.org/x/test@master | 拉取 master 分支的最新 commit。                    |
+| go get golang.org/x/test@v0.3.2 | 拉取 tag 为 v0.3.2 的 commit。                  |
+| go get golang.org/x/test@342b2e | 拉取 hash 为 342b231 的 commit，最终会被转换为 v0.3.2。 |
+
+#### 子参数说明
+
+|子命令|描述|
+|---|---|
+|-d|仅下载，不安装|
+|-f|和 -u 配合，强制更新，不检查是否过期|
+|-t|下载测试代码所需的依赖包|
+|-u|更新包，包括他们的依赖项|
+|-v|输出详细信息|
+|insecure|使用 http 等非安全协议|
