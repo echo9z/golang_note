@@ -3,7 +3,7 @@
 
 ## GOPATH
 
-在 Go 1.11 版本之前，Go 并没有模块（`go mod`）的概念，而是使用了一个全局的工作区机制，依赖通过 `GOPATH` 管理，且所有的 Go 项目代码都要保存在 GOPATH/src 目录下。
+在 Go 1.11 版本之前，Go 并没有模块（`go mod`）的概念，而是使用了一个全局的工作区机制，依赖通过 `GOPATH` 管理，且所有的 Go 项目代码都要保存在 `GOPATH/src` 目录下。
 
 ```shell
 $ go env GOPATH
@@ -159,7 +159,7 @@ amd64
 关于`vendor`具体使用参考：[govendor](https://shockerli.net/post/go-package-manage-tool-govendor/)文章
 
 ## Modules
-### mod提供的命令
+### go mod 提供的命令
 在 Go modules 中，我们能够使用如下命令进行操作：
 
 | 命令                 | 作用                                                                                                                                                                                                     |
@@ -175,7 +175,7 @@ amd64
 | go mod why         | 查看为什么需要依赖某模块，比如 `go mod why gopkg.in/yaml.v2 gopkg.in/yaml.v3`                                                                                                                                         |
 | go clean -modcache | 可以清空本地下载的 Go Modules 缓存 （会清空 `$GOPATH/pkg/mod` 目录）                                                                                                                                                     |
 
-### mod 提供环境变量
+### go mod 提供环境变量
 在 Go modules 中有如下常用环境变量，通过 `go env` 命令来进行查看，如下：
 ```bash
 $ go env
@@ -240,7 +240,7 @@ GOSUMDB=off
 2. **使用自定义校验和数据库**  
 	需要使用公司内部的校验和数据库，可以将 `GOSUMDB` 设置为自定义的地址：
 ```bash
-    GOSUMDB=mychecksumdb.example.com
+GOSUMDB=mychecksumdb.example.com
 ```
 
 ### GONOPROXY/GONOSUMDB/GOPRIVATE
@@ -306,7 +306,7 @@ cd ~/Desktop/arc_web
 
 初始化Go modules模块
 ```bash
-go init arc_web
+go mod init arc_web
 ```
 
 该项目根目录下创建 `main.go`文件，如下：
@@ -556,12 +556,12 @@ require (
 经过 `go mod tidy` 或构建操作后，生成的 `go.sum` 文件中，关于 `github.com/foo/bar` 的记录可能只包含如下条目：
 
 ```go
-github.com/foo/bar v1.2.3/go.mod h1:XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX=`
+github.com/foo/bar v1.2.3/go.mod h1:XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX=
 ```
 而不会出现类似下面的条目：
 
 ```go
-github.com/foo/bar v1.2.3 h1:YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY=`
+github.com/foo/bar v1.2.3 h1:YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY=
 ```
 
 **解释说明**
@@ -585,7 +585,7 @@ $ tree . -L 1
 需要注意的是同一个模块版本的数据只缓存一份，所有其它模块共享使用。如果你希望清理所有已缓存的模块版本数据，可以执行 `go clean -modcache` 命令。
 
 ### Modules 下的 go get 行为
-在 Go Modules 中，`go get` 的拉取过程被分为三个主要步骤：**Finding**（发现）、**Downloading**（下载）和 **Extracting**（提取）。
+在 Go Modules 拉取项目依赖时，`go get` 的拉取过程被分为三个主要步骤：**Finding**（发现）、**Downloading**（下载）和 **Extracting**（提取）。
 
 ```go
 ❯ go get github.com/echo9z/goutl 
@@ -611,7 +611,7 @@ v0.0.0-20250220055007-9ffbc80b86c3
 - 一旦 Go 确认了模块和版本，工具链会开始从模块仓库或 Go Proxy 下载所需的代码（通常是压缩的 `.zip` 文件）到本地的缓存中。
 - 下载的模块通常存储在 `GOPATH/pkg/mod` 目录下（Go Modules 模式下）。
 
-例如：运行`go get github.com/echo9z/goutl`，通过 Go Proxy 或直接从模块仓库下载 `.zip` 文件。从 `https://proxy.golang.org` 或直接从 `github.com/echo9z/goutl` 下载模块，当模块没有release版本，默认版本为 `v0.0.0`，将模块缓存至`GOPATH/pkg/mod`。
+例如：运行`go get github.com/echo9z/goutl`，通过 Go Proxy 或直接从模块仓库下载 `.zip` 文件。从 `https://proxy.golang.org` 或直接从 `github.com/echo9z/goutl` 下载模块，当模块没有发布`tags`版本，默认版本为 `v0.0.0`，将模块缓存至`GOPATH/pkg/mod`。
 
  **Extracting**（提取）：
 `go get` 命令的第三步，提取下载的模块文件，解压并准备以供编译使用。
@@ -620,7 +620,7 @@ v0.0.0-20250220055007-9ffbc80b86c3
 
 例如：下载了 `github.com/echo9z/goutl` 模块，go会解压该模块的 `.zip` 文件。将文件提取到本地的 `GOPATH/pkg/mod/github.com/echo9z/goutl@v0.0.0-20250220055007-9ffbc80b86c3` 目录下。将模块下的源码文件、`go.mod` 文件和其他相关资源都会被提取并准备好，以便在其他项目中编译使用。
 
-### go get 拉取命令
+### go get 拉取模块命令
 > 下载的模块存放于 `$GOPATH/pkg/mod` 目录中
 
 | 命令               | 作用                                                           |
@@ -637,14 +637,180 @@ v0.0.0-20250220055007-9ffbc80b86c3
 | go get golang.org/x/test@master | 拉取 master 分支的最新 commit。                    |
 | go get golang.org/x/test@v0.3.2 | 拉取 tag 为 v0.3.2 的 commit。                  |
 | go get golang.org/x/test@342b2e | 拉取 hash 为 342b231 的 commit，最终会被转换为 v0.3.2。 |
-
 #### 子参数说明
 
-|子命令|描述|
-|---|---|
-|-d|仅下载，不安装|
-|-f|和 -u 配合，强制更新，不检查是否过期|
-|-t|下载测试代码所需的依赖包|
-|-u|更新包，包括他们的依赖项|
-|-v|输出详细信息|
-|insecure|使用 http 等非安全协议|
+| 子命令      | 描述                   |
+| -------- | -------------------- |
+| -d       | 仅下载，不安装              |
+| -f       | 和 -u 配合，强制更新，不检查是否过期 |
+| -t       | 下载测试代码所需的依赖包         |
+| -u       | 更新包，包括他们的依赖项         |
+| -v       | 输出详细信息               |
+| insecure | 使用 http 等非安全协议       |
+修改项目模块的版本依赖
+```shell
+go mod edit -replace=<old@xxx>=<new@xxx>
+
+#eg:
+go mod edit -replace=github.com/gin-gonic/gin@v1.10.0=github.com/gin-gonic/gin@v1.9.0
+```
+
+#### go get 选择依赖版本
+比如在拉取`go get github.com/echo9z/goutl`，其结果`v0.0.0-20250220055007-9ffbc80b86c3`。从前面提到的`go get`行为来看，在没有指定任何版本的情况下，它的版本选择规则是怎么样的，也就是为什么 `go get` 拉取的是 `v0.0.0`，什么时候会拉取正常带版本号的 tags 呢？实际上需要区分两种情况，如下：
+1. 所拉取的模块有发布 tags：
+	如果只有单个模块，那么就取主版本号最大的那个tag。
+	如果有多个模块，则推算相应的模块路径，取主版本号最大的那个tag（子模块的tag的模块路径会有前缀要求）
+2. 所拉取的模块没有发布过 tags：
+	默认取主分支最新一次 commit 的 commithash。
+
+##### 没有发布过tags
+拉取版本为什么是v0.0.0，原因是`github.com/echo9z/goutl`没有发布任何的tags。
+![](./go.assets/img/mod1.png)
+因此默认取的是主分支最新一次 commit 的 commit 时间和 commithash，也就是 `20250220055007-9ffbc80b86c3`，属于第二种情况。
+
+##### 有发布tags
+项目有发布 tags 情况下，但有的项目存在多个module模块，有的只有单个module模块。下面以多module模块为示例说明。
+![](./go.assets/img/mod2.png)
+
+这个项目中，一共打了两个tag，分别是：`v0.0.1` 和 `module/str/v0.0.1`。在Go modules 在同一个项目下多个模块的tag表现方式，其主要目录结构为：
+```shell
+goutl
+├─go.mod
+├─hash
+│   ├─md5.go
+│   └─md5_test.go
+└─module
+    └─str
+       ├─substr.go
+       ├─substr_test.go
+       └─go.mod
+```
+
+`goutl` 项目的根目录有一个 go.mod 文件，而在 `module/str` 目录下也有一个 go.mod 文件，其模块导入和版本信息的对应关系如下：
+
+| tag                | 模块导入路径                             | 含义                                   |
+| ------------------ | ---------------------------------- | ------------------------------------ |
+| v0.0.1             | github.com/echo9z/goutl/hash       | goutl 项目的v 0.0.1 版本                  |
+| module/goutl/v0.01 | github.com/echo9z/goutl/module/str | goutl 项目下的子模块 module/str 的 v0.0.1 版本 |
+拉取主模块，如下命令：
+```shell
+➜ go get github.com/echo9z/goutl@v0.0.1
+go: downloading github.com/echo9z/goutl v0.0.1
+go: upgraded github.com/echo9z/goutl v0.0.0-20250220055007-9ffbc80b86c3 => v0.0.1
+```
+
+想拉取子模块，执行如下命令：
+```shell
+➜ go get github.com/echo9z/goutl/module/str@v0.0.2
+go: downloading github.com/echo9z/goutl/module/str v0.0.2
+go: added github.com/echo9z/goutl/module/str v0.0.2
+```
+
+
+### Go Modules 的导入路径说明
+`Go modules` 在主版本号为 v0 和 v1 的情况下省略了版本号，而在主版本号为v2及以上则需要明确指定出主版本号，否则会出现冲突，其tag与模块导入路径的大致对应关系如下：
+
+| tag    | 模块导入路径                     |
+| ------ | -------------------------- |
+| v0.0.0 | github.com/echo9z/goutl    |
+| v1.0.0 | github.com/echo9z/goutl    |
+| v2.0.0 | github.com/echo9z/goutl/v2 |
+| v3.0.0 | github.com/echo9z/goutl/v3 |
+
+对于主版本号为 v0 和 v1 的模块，模块路径中不需要包含版本号后缀。例如，如果你的模块版本是 v1.x.x（或 v0.x.x），模块路径可以写成：
+```go mod
+module github.com/echo9z/goutl
+```
+当模块升级到 v2 或更高版本时，必须在模块路径中包含一个 /v2（或 /v3、/vN）后缀，例如：
+```go mod
+module github.com/echo9z/goutl/v2
+```
+
+比如：你有一个项目，初始版本是 v1.0.0，你的 `go.mod` 文件可以写成：
+```go
+```
+
+
+#### 为什么省略 v0 和 v1 的版本号？
+##### 1.保持导入路径简洁
+对于 v0 和 v1 的模块，Go 认为它们在设计上是向后兼容的，所以不需要在导入路径中加入额外的版本号。例如，你可以使用：
+
+```go
+import "github.com/username/project"
+```
+而不是
+```go
+import "github.com/username/project/v1"
+```
+##### 2.向后兼容的约定
+在 Go Modules 的设计中，v0 和 v1 被视为同一“兼容簇”，也就是说这些版本之间通常不会引入破坏性更改。所以，模块作者不需要为了标识版本而在导入路径中添加版本号，保持代码库的一致性和简洁性。
+##### 3.重大不兼容变更才需要显式版本号
+当模块引入了破坏性更改（比如从 v1 升级到 v2），就需要在模块路径中显式包含主版本号（例如 /v2），以便用户在导入时能够清楚地区分不同版本，避免兼容性问题。
+例如，当你发布 v2 版本时，模块的 go.mod 文件应该写成：
+```go
+module github.com/username/project/v2
+```
+在其他项目导入时，必须写成：
+```go
+import "github.com/username/project/v2"
+```
+
+
+### go list 列出项目相关依赖
+```shell
+# 列出当前项目的所有可升级依赖
+go list -m -u all
+```
+
+| 参数    | 作用                                                                |
+| ----- | ----------------------------------------------------------------- |
+| -f    | 用于查看对应依赖结构体中的指定的字段，其默认值就是 `{{.ImportPath}}`，也就是导入路径，因此我们一般不需要进行调整 |
+| -json | 显示的格式，若不指定该选项，则会一行行输出。                                            |
+| -u    | 显示能够升级的模块信息                                                       |
+| -m    | 显示当前项目所依赖的全部模块                                                    |
+|       |                                                                   |
+- `-f`用于查看当前项目的结构情况
+```shell
+# 查看当前包的 ImportPath（包导入路径）
+go list -f '{{.ImportPath}}'
+github.com/echo9z/goutl
+
+# 查看包的 Go 源码文件列表
+go list -f '{{.GoFiles}}'
+[main.go util.go]
+
+# 查看包的依赖项（直接导入的包）
+go list -f '{{.Imports}}'
+[fmt strings os]
+```
+
+eg：查看 `gin` 框架的版本
+```bash
+go list -m -versions -json github.com/gin-gonic/gin
+# 输入出下列内容：
+{
+        "Path": "github.com/gin-gonic/gin",
+        "Version": "v1.10.0",
+        "Versions": [
+                "v1.1.1",
+                "v1.1.2",
+                "v1.1.3",
+                "v1.1.4",
+                "v1.3.0",
+                ... ...
+                "v1.8.2",
+                "v1.9.0",
+                "v1.9.1",
+                "v1.10.0"
+        ],
+        "Time": "2024-05-07T03:23:42Z",
+        "Indirect": true,
+        "Dir": "/Users/echo9z/go/pkg/mod/github.com/gin-gonic/gin@v1.10.0",
+        "GoMod": "/Users/echo9z/go/pkg/mod/cache/download/github.com/gin-gonic/gin/@v/v1.10.0.mod",
+        "GoVersion": "1.20",
+        "Sum": "h1:nTuyha1TYqgedzytsKYqna+DfLos46nTv2ygFy86HFU=",
+        "GoModSum": "h1:4PMNQiOhvDRa013RKVbsiNwoyezlm2rm0uX/T7kzp5Y="
+}
+```
+
+

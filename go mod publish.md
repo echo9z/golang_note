@@ -94,7 +94,8 @@ func TestMd5(t *testing.T) {
     // 比较字符串的预期和实际 MD5 哈希值。  
     if expectStringMd5 != actualStringMd5 {  
        t.Errorf("expect string md5 value is %s; but had %s\n", expectStringMd5, actualStringMd5)  
-    }}  
+    }
+}
   
 // BenchmarkMd5 基准测试文件和字符串的 MD5 哈希函数。  
 func BenchmarkMd5(b *testing.B) {  
@@ -110,7 +111,8 @@ func BenchmarkMd5(b *testing.B) {
     // 基准测试字符串的 MD5 哈希计算。  
     for i := 0; i < b.N; i++ {  
        _ = StringMd5(str)  
-    }}
+    }
+}
 ```
 
 进入 `hash`文件夹，执行 `go test` 命令
@@ -130,9 +132,74 @@ coverage: 81.8% of statements
 ok      github.com/echo9z/goutl/hash    1.385s
 ```
 
+## 发布一个版本
 接下来可以把刚刚新增的文件，全部 push 到 git 仓库。
 ```bash
 git add .
 git commit -m "add a md5 func"
 git push origin
 ```
+对当前提交的commit记录打tag标签
+```shell
+# 创建v0.0.1 tags
+git tag -a v0.0.1 -m "Release util v0.0.1"
+# 将tags标签推送至远程仓库中
+git push origin v0.0.1
+```
+
+![](./go.assets/img/publish4.jpg)
+
+选择tagv0.0.1标签，点击`Publish release`发布一个release版本。
+![](./go.assets/img/publish5.png)生成指定的releases版本
+![](./go.assets/img/publish6.jpg)
+
+## 如何使用？
+
+使用 go get 命令，在其他项目中下载我们的发布的模块
+```shell
+go get github.com/echo9z/goutl@v0.0.1
+go: downloading github.com/echo9z/goutl v0.0.1
+go: upgraded github.com/echo9z/goutl v0.0.0-20250220055007-9ffbc80b86c3 => v0.0.1
+```
+
+在其他项目中引入
+```go
+package main  
+  
+import "github.com/echo9z/goutl/hash"
+  
+func main() {  
+    hash.StringMd5("test MD5")
+}
+```
+
+使用 tree 命令，查看一下下载的包已经放入了 `$GOPATH/pkg/mod` 下。
+```shell
+C:\USERS\11312\GO\PKG\MOD\GITHUB.COM
+└─echo9z
+    ├─goutl
+    │  └─module
+    │      └─str@v0.0.1
+    │              go.mod
+    │              substr.go
+    │              substr_test.go
+    │
+    └─goutl@v0.0.1
+        │  .gitignore
+        │  go.mod
+        │  README.md
+        │
+        ├─.idea
+        │      .gitignore
+        │      aws.xml
+        │      goutl.iml
+        │      MarsCodeWorkspaceAppSettings.xml
+        │      modules.xml
+        │      vcs.xml
+        │
+        └─hash
+                md5.go
+                md5_test.go
+```
+
+
