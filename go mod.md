@@ -296,6 +296,89 @@ GONOPROXY=*.example.com
 GONOSUMDB=*.example.com,github.com/internal/module
 ```
 
+### go mod 模块命令
+1. 初始化模块
+`go mod init`作用：创建新的 go.mod 文件，初始化模块路径。
+场景：新项目创建或迁移旧项目到 Go 模块化。
+```bash
+go mod init github.com/yourname/project
+```
+
+2. 整理依赖
+`go mod tidy`作用：自动添加缺失的依赖，并移除未使用的依赖。
+场景：修改代码后同步依赖关系。
+```bash
+go mod tidy  # 清理 go.mod 和 go.sum
+```
+
+3. 编辑 go.mod
+`go mod edit`作用：通过命令行编辑 go.mod 文件（适合脚本操作）。
+常用参数：
+- -require：添加或修改依赖项。
+- -droprequire：移除依赖项。
+- -replace：替换依赖路径（本地开发常用）。
+```bash
+# 添加依赖
+go mod edit -require github.com/gin-gonic/gin@v1.9.1
+```
+
+```
+# 替换依赖为本地路径
+go mod edit -replace github.com/old/module=../local/module
+```
+
+```bash
+# 移除依赖
+go mod edit -droprequire github.com/unused/module
+```
+4. 下载依赖
+`go mod download`作用：下载依赖到本地缓存（默认路径：$GOPATH/pkg/mod）。
+场景：预下载依赖或离线构建准备。
+```bash
+go mod download     # 下载所有依赖
+go mod download -x  # 显示详细下载过程
+```
+
+5. 验证依赖完整性
+`go mod verify`作用：检查依赖项的哈希值是否与 go.sum 文件一致，防止篡改。
+```bash
+go mod verify
+# 输出：all modules verified
+```
+
+6. 解释依赖关系
+`go mod why`作用：显示某依赖为何被引入（依赖关系链）。
+场景：调试依赖来源。
+```bash
+go mod why github.com/sirupsen/logrus
+# 输出：依赖路径的引入原因
+```
+
+7. 生成 vendor 目录
+`go mod vendor`作用：将依赖复制到项目根目录的 vendor 文件夹中。
+场景：需要完全控制依赖版本或离线构建。
+```bash
+go mod vendor  # 生成 vendor/
+```
+
+8. 依赖图分析
+`go mod graph`作用：以文本形式输出模块依赖图。
+场景：分析项目依赖结构。
+```bash
+go mod graph | grep github.com/gin-gonic/gin
+```
+
+| **命令**             | **作用**                 | **示例**                                                    |
+| ------------------ | ---------------------- | --------------------------------------------------------- |
+| go mod init <模块路径> | 初始化新模块，生成 go.mod 文件    | go mod init github.com/yourname/project                   |
+| go mod tidy        | 自动添加缺失的依赖，删除未使用的依赖     | go mod tidy                                               |
+| go mod download    | 下载依赖到本地缓存（不修改 go.mod）  | go mod download -x（显示详细过程）                                |
+| go mod edit        | 命令行编辑 go.mod 文件        | go mod edit -replace old/module=new/module@v1.0.0（替换依赖路径） |
+| go mod vendor      | 生成 vendor 目录（包含所有依赖源码） | go mod vendor                                             |
+| go mod verify      | 检查依赖的哈希值是否与 go.sum 一致  | go mod verify                                             |
+| go mod why <模块路径>  | 解释某个依赖为何被引入            | go mod why github.com/sirupsen/logrus                     |
+| go mod graph       | 输出模块依赖图（文本格式）          | go mod graph \| grep gin（过滤特定依赖）                          |
+
 ### 初始化项目
 
 在完成 Go modules 的开启后，创建一个示例项目来进行演示，执行如下命令：
@@ -341,10 +424,7 @@ go: added golang.org/x/sys v0.25.0
 - replace：用于将一个模块版本替换为另外一个模块版本。
 
 初始项目时，会生成一个 go.mod 文件，是启用了 Go modules 项目所必须的最重要的标识，描述当前项目（也就是当前模块）的元信息。
-eg:T是前世界标准时，UTC是现世界标准时。
-UTC 比 GMT更精准，以原子时计时，适应现代社会的精确计时。
-但在不需要精确到秒的情况下，二者可以视为等同。
-每年格林尼治天文台会发调时信息，基于UTC。
+
 ```go
 module arc_web  
   
@@ -584,8 +664,8 @@ $ tree . -L 1
 
 需要注意的是同一个模块版本的数据只缓存一份，所有其它模块共享使用。如果你希望清理所有已缓存的模块版本数据，可以执行 `go clean -modcache` 命令。
 
-### Modules 下的 go get 行为
-在 Go Modules 拉取项目依赖时，`go get` 的拉取过程被分为三个主要步骤：**Finding**（发现）、**Downloading**（下载）和 **Extracting**（提取）。
+### go get 拉取行为
+在 Go Modules 中，`go get` 的拉取过程被分为三个主要步骤：**Finding**（发现）、**Downloading**（下载）和 **Extracting**（提取）。
 
 ```go
 ❯ go get github.com/echo9z/goutl 
@@ -623,6 +703,39 @@ v0.0.0-20250220055007-9ffbc80b86c3
 ### go get 拉取模块命令
 > 下载的模块存放于 `$GOPATH/pkg/mod` 目录中
 
+基本使用
+```shell
+go get [参数] <模块路径>[@版本或分支]
+```
+常见场景与命令示例
+(1) 拉取最新版本
+```bash
+go get github.com/gin-gonic/gin   # 拉取最新稳定版本（默认行为）
+```
+
+(2) 拉取指定版本
+```bash
+go get github.com/gin-gonic/gin@v1.9.1          # 语义化版本（SemVer）
+go get github.com/gin-gonic/gin@e3702bed2       # 提交哈希
+go get github.com/gin-gonic/gin@master          # 分支名（如 master/main）
+```
+
+(3) 升级依赖
+```shell
+go get -u github.com/gin-gonic/gin      # 升级到最新的次要版本或修订版本
+go get -u=patch github.com/gin-gonic/gin  # 仅升级修订版本（如 v1.2.3 → v1.2.4）
+```
+
+(4) 降级依赖
+```shell
+go get github.com/gin-gonic/gin@v1.8.1  # 指定旧版本
+```
+
+(5) 安装可执行工具
+```shell
+go get golang.org/x/tools/cmd/goimports@latest  # 安装二进制工具到 $GOPATH/bin
+```
+
 | 命令               | 作用                                                           |
 | ---------------- | ------------------------------------------------------------ |
 | go get           | 拉取依赖，会进行指定性拉取（更新），并不会更新所依赖的其它模块。（如果本地已存在要下载的包，将会直接使用本地已存在的包） |
@@ -639,22 +752,14 @@ v0.0.0-20250220055007-9ffbc80b86c3
 | go get golang.org/x/test@342b2e | 拉取 hash 为 342b231 的 commit，最终会被转换为 v0.3.2。 |
 #### 子参数说明
 
-| 子命令      | 描述                   |
-| -------- | -------------------- |
-| -d       | 仅下载，不安装              |
-| -f       | 和 -u 配合，强制更新，不检查是否过期 |
-| -t       | 下载测试代码所需的依赖包         |
-| -u       | 更新包，包括他们的依赖项         |
-| -v       | 输出详细信息               |
-| insecure | 使用 http 等非安全协议       |
-修改项目模块的版本依赖
-```shell
-go mod edit -replace=<old@xxx>=<new@xxx>
-
-#eg:
-go mod edit -replace=github.com/gin-gonic/gin@v1.10.0=github.com/gin-gonic/gin@v1.9.0
-```
-
+| **参数**      | **作用**                        |
+| ----------- | ----------------------------- |
+| `-d`        | 仅下载源码，不编译或安装（常用于预下载依赖）        |
+| `-u`        | 升级依赖到最新版本（默认升级次要版本和修订版本）      |
+| `-u=patch`  | 仅升级修订版本（如 `v1.2.3 → v1.2.4`）  |
+| `-t`        | 同时下载测试依赖                      |
+| `-v`        | 显示详细日志                        |
+| `-insecure` | 允许通过 HTTP 协议下载模块（不推荐，仅用于特殊场景） |
 #### go get 选择依赖版本
 比如在拉取`go get github.com/echo9z/goutl`，其结果`v0.0.0-20250220055007-9ffbc80b86c3`。从前面提到的`go get`行为来看，在没有指定任何版本的情况下，它的版本选择规则是怎么样的，也就是为什么 `go get` 拉取的是 `v0.0.0`，什么时候会拉取正常带版本号的 tags 呢？实际上需要区分两种情况，如下：
 1. 所拉取的模块有发布 tags：
@@ -706,7 +811,6 @@ go: downloading github.com/echo9z/goutl/module/str v0.0.2
 go: added github.com/echo9z/goutl/module/str v0.0.2
 ```
 
-
 ### Go Modules 的导入路径说明
 `Go modules` 在主版本号为 v0 和 v1 的情况下省略了版本号，而在主版本号为v2及以上则需要明确指定出主版本号，否则会出现冲突，其tag与模块导入路径的大致对应关系如下：
 
@@ -728,22 +832,48 @@ module github.com/echo9z/goutl/v2
 
 比如：你有一个项目，初始版本是 v1.0.0，你的 `go.mod` 文件可以写成：
 ```go
+module github.com/echo9z/goutl
+
+go 1.20
+
+require (
+    // 其他依赖...
+)
+```
+其他项目导入你的模块：
+```go
+import "github.com/echo9z/goutl"
 ```
 
+发布 v2.0.0 版本时，你需要修改模块路径，例如：
+```go
+module github.com/echo9z/goutl/v2
+
+go 1.20
+
+require (
+    // 其他依赖...
+)
+```
+其他项目，导入的你模块时需要写成：
+```go
+import "github.com/echo9z/goutl/v2"
+```
+确保了 v1 和 v2 之间互不干扰，且明确表示了重大版本升级可能带来的不兼容性。
 
 #### 为什么省略 v0 和 v1 的版本号？
 ##### 1.保持导入路径简洁
 对于 v0 和 v1 的模块，Go 认为它们在设计上是向后兼容的，所以不需要在导入路径中加入额外的版本号。例如，你可以使用：
 
 ```go
-import "github.com/username/project"
+import "github.com/echo9z/goutl"
 ```
 而不是
 ```go
-import "github.com/username/project/v1"
+import "github.com/echo9z/goutl/v1"
 ```
 ##### 2.向后兼容的约定
-在 Go Modules 的设计中，v0 和 v1 被视为同一“兼容簇”，也就是说这些版本之间通常不会引入破坏性更改。所以，模块作者不需要为了标识版本而在导入路径中添加版本号，保持代码库的一致性和简洁性。
+在 Go Modules 的设计中，v0 和 v1 被视为同一“兼容簇”，也就是说这些版本之间通常不会引入破坏性更改。所以，你就不需要为了标识版本而在导入路径中添加版本号，保持代码库的一致性和简洁性。
 ##### 3.重大不兼容变更才需要显式版本号
 当模块引入了破坏性更改（比如从 v1 升级到 v2），就需要在模块路径中显式包含主版本号（例如 /v2），以便用户在导入时能够清楚地区分不同版本，避免兼容性问题。
 例如，当你发布 v2 版本时，模块的 go.mod 文件应该写成：
@@ -755,6 +885,21 @@ module github.com/username/project/v2
 import "github.com/username/project/v2"
 ```
 
+Go Modules 之所以忽略 v0 和 v1 的主版本号，是为了简化导入路径和开发流程，只有在发生重大、破坏性的不兼容更新时，才需要在模块路径中显式标明版本号，以便让开发者明确区分不同的版本系列。
+
+### 修改项目模块的版本依赖
+```shell
+go mod edit -replace=<old@xxx>=<new@xxx>
+
+#eg:
+go mod edit -replace=github.com/gin-gonic/gin@v1.10.0=github.com/gin-gonic/gin@v1.9.0
+```
+
+### 清理未使用的依赖
+使用 `go mod tidy` 清理不再需要的依赖：
+```shell
+go mod tidy
+```
 
 ### go list 列出项目相关依赖
 ```shell
@@ -768,7 +913,6 @@ go list -m -u all
 | -json | 显示的格式，若不指定该选项，则会一行行输出。                                            |
 | -u    | 显示能够升级的模块信息                                                       |
 | -m    | 显示当前项目所依赖的全部模块                                                    |
-|       |                                                                   |
 - `-f`用于查看当前项目的结构情况
 ```shell
 # 查看当前包的 ImportPath（包导入路径）
@@ -813,4 +957,75 @@ go list -m -versions -json github.com/gin-gonic/gin
 }
 ```
 
+### Go Modules 的语义化版本控制
+在 Go Modules 的使用中提到版本号，其实质上被称为“语义化版本”，假设我们的版本号是 v1.2.3，如下：
+- **语义化版本（SemVer）**：`v主版本.次版本.修订号`（如 `v1.2.3`）。
+- **主版本变更**：若模块主版本 ≥2，导入路径必须包含版本号（如 `github.com/foo/bar/v2`）。
+- **伪版本**：当依赖未发布正式版本时，Go 会自动生成伪版本号（如 `v0.0.0-20231001000000-abcdef123456`）。
 
+![](./go.assets/img/ver1.jpg)
+
+ “主版本号.次版本号.修订号”，版本号的递增规则如下：
+1. 主版本号：当你做了不兼容的 API 修改。
+2. 次版本号：当你做了向下兼容的功能性新增。
+3. 修订号：当你做了向下兼容的问题修正。
+
+先行版本号或特殊情况，将版本信息延伸为到“主版本号.次版本号.修订号”的后面，
+`v主版本.次版本.修订号-行版本`（如 `v1.3.0-pre`）。
+![](./go.assets/img/pre.jpg)
+
+
+
+Go 决定采取一种不同的方法，Russ Cox 花了大量的时间和精力**[写作](https://link.zhihu.com/?target=https%3A//research.swtch.com/vgo)**和**[讨论](https://link.zhihu.com/?target=https%3A//www.youtube.com/watch%3Fv%3DF8nrpe0XWRg)** Go 团队的版本选择方法，这种方法被称为最小版本选择或 MVS。实质上，Go 团队相信 MVS 为 Go 程序提供了持久的、可重复的长期构建的最佳机会。我建议读一读**[这篇文章](https://link.zhihu.com/?target=https%3A//research.swtch.com/vgo-principles)**，理解为什么 Go 团队相信这一点。
+
+在本文中，我将尽力解释 MVS 语义，并展示一个实际的 Go 示例和 MVS 算法。
+
+### MVS 语义
+
+命名 Go 的选择算法“最小版本选择”有点用词不当，但是一旦你了解了它的工作原理，你就会发现它的名字非常接近。正如我之前所说的，许多选择算法选择依赖项的“最新最大”版本。我喜欢把 MVS 看作是一种选择“最新的非最大”版本的算法。并不是 MVS 不能选择“最新的最大”，只是如果项目中的任何依赖项都不需要“最新的最大”，那么就不需要该版本。
+
+下面有一种情况: 几个模块(A、B 和 C)依赖于同一个模块(D) ，但每个模块需要不同的版本。
+![](./go.assets/img/mvs.jpg)
+图中，模块 A、B 和 C 各自独立地需要模块 D，并且每个模块都需要不同版本的模块。
+
+如果我启动一个需要模块 A 的项目，那么为了构建代码，我还需要模块 D。模块 D 有很多版本可供选择。例如，想象模块 D 是 sirupsen 中的 logrus 模块。我可以要求 Go 为我提供一个所有已经被标记为模块 D 的版本的列表。
+
+```bash
+$ go list -m -versions github.com/sirupsen/logrus
+
+github.com/sirupsen/logrus v0.1.0 v0.1.1 v0.2.0
+v0.3.0 v0.4.0 v0.4.1 v0.5.0 v0.5.1 v0.6.0 v0.6.1
+v0.6.2 v0.6.3 v0.6.4 v0.6.5 v0.6.6 v0.7.0 v0.7.1 
+v0.7.2 v0.7.3 v0.8.0 v0.8.1 v0.8.2 v0.8.3 v0.8.4
+v0.8.5 v0.8.6 v0.8.7 v0.9.0 v0.10.0 v0.11.0 v0.11.1
+v0.11.2 v0.11.3 v0.11.4 v0.11.5 v1.0.0 v1.0.1 v1.0.3
+v1.0.4 v1.0.5 v1.0.6 v1.1.0 v1.1.1 v1.2.0 v1.3.0
+v1.4.0 v1.4.1 v1.4.2
+```
+
+上述清单显示了模块 D 的所有版本，其中显示了“最新最大”的版本为 v1.4.2。
+
+应该为项目选择哪个版本的模块 D？实际上有两种选择。第一个选择是选择“最新最大”的版本(在这一行的主要版本 1 版本中) ，它将是版本 1.4.2。第二个选择是选择模块 A 需要的版本，即 v1.0.6 版本。
+
+像 dep 这样的依赖工具会选择 v1.4.2 版本，并在语义版本控制和社会契约得到尊重的前提下工作。然而，根据 Russ 在[该文](https://research.swtch.com/vgo-principles)中定义的原因，Go 将尊重模块 A 的要求，选择 v1.0.6 版本。Go 为项目中需要该模块的所有依赖项选择当前在所需版本集中的“最小”版本。换句话说，现在只有模块 A 需要模块 D，而模块 A 已经指定它需要版本 v1.0.6，因此这将作为模块 D 的版本。
+
+如果我引入新的代码，要求项目导入模块 B，会怎么样？一旦模块 B 被导入到项目中，Go 将该项目的模块 D 的版本从 v1.0.6 升级到 v1.2.0。再次为项目中需要模块 D 的所有依赖项(模块 A 和模块 B)选择模块 D 的“最小”版本，该版本目前位于所需版本集(v1.0.6 和 v1.2.0 )中。
+
+如果我再次引入需要项目导入模块 C 的新代码会怎么样？然后 Go 将从所需的版本集(v1.0.6、 v1.2.0、 v1.3.2)中选择最新版本(v1.3.2)。请注意，v1.3.2 版本仍然是“最小”版本，而不是模块 D (v1.4.2)的“最新最大”版本。
+
+最后，如果我删除刚刚为模块 C 添加的代码会怎样？Go 将把该项目锁定到模块 D 的版本 v1.3.2 中，降级回到版本 v1.2.0 将是一个更大的改变，而且 Go 知道版本 v1.3.2 工作正常且稳定，因此版本 v1.3.2 仍然是该项目模块 D 的“最新非最大”或“最小”版本。另外，模块文件只维护一个快照，而不是日志。没有关于历史撤销或降级的信息。
+
+这就是为什么我喜欢将 MVS 看作是一种选择模块的“最新非最大”版本的算法。希望您现在明白为什么 Russ 在命名算法时选择 “minimal”这个名称。
+
+### go.sum 文件要不要提交
+
+理论上 go.mod 和 go.sum 文件都应该提交到你的 Git 仓库中去。
+
+假设我们不上传 go.sum 文件，就会造成每个人执行 Go modules 相关命令，又会生成新的一份 go.sum，也就是会重新到上游拉取，再拉取时有可能就是被篡改过的了，会有很大的安全隐患，失去了与基准版本（第一个所提交的人，所期望的版本）的校验内容，因此 go.sum文件是需要提交。
+
+参考：
+[Go Modules 终极入门](https://mp.weixin.qq.com/s?__biz=MzUxMDI4MDc1NA==&mid=2247483713&idx=1&sn=817ffef56f8bc5ca09a325c9744e00c7&source=41&poc_token=HLyS82ejEo-PvUBsDHkYL_q56_ZZt66nrffyU9Np)
+[一文搞懂 Go Modules 前世今生及入门使用](https://www.cnblogs.com/wongbingming/p/12941021.html)
+[Go语言之依赖管理](https://www.cnblogs.com/Dr-wei/p/11742253.html)
+[研究！rsc：Go 版本控制原则（Go & 版本控制，第 11 部分）](https://research.swtch.com/vgo-principles)
+[Go Module 教程第 3 部分：最小版本选择](https://zhuanlan.zhihu.com/p/427037270)
