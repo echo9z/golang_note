@@ -89,8 +89,8 @@ func NumberDataType() {
 	fmt.Println("c1:", c1)
 	fmt.Println("c2:", c2)
 
-	var c3 byte = '中' // ‘中’的unicode码为20013，byte为uint8，取值范围为0-255
-	fmt.Println("c3:", c3)
+	//var c3 byte = '中' // ‘中’的unicode码为20013，byte为uint8，取值范围为0-255
+	//fmt.Println("c3:", c3)
 }
 
 // 格式化输出

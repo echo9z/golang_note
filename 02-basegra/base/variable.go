@@ -8,7 +8,7 @@ func Variable() {
 	var a = 5 // 声明一个 a 变量
 	a += 1    // a + 1 = 6
 	a /= 2    // a / 2 = 3
-	a &^= 2   // a &^ 2 = 1
+	a &^= 2   // a &^ 2 = 1   a &^ b 等价于 a & (^b)（即先对 b 取反，再与 a 按位与）
 	fmt.Println("a", a)
 	var c int // 声明一个变量，默认值为0
 	fmt.Println(c)
