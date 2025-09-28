@@ -44,8 +44,8 @@ func main() {
 	var sli1 []int = []int{1, 2, 3}
 	var sli2 []int = sli1 // 将 sli1 的引用赋值给了 sli2
 
-	fmt.Printf("sli1 切片头地址: %p\n", &sli1)  // 切片变量本身的地址
-	fmt.Printf("sli2 切片头地址: %p\n", &sli2)  // 切片变量本身的地址
+	fmt.Printf("sli1 切片头地址: %p\n", &sli1) // 切片变量本身的地址
+	fmt.Printf("sli2 切片头地址: %p\n", &sli2) // 切片变量本身的地址
 	fmt.Printf("sli1 底层数组地址: %p\n", sli1) // 底层数组的地址
 	fmt.Printf("sli2 底层数组地址: %p\n", sli2) // 底层数组的地址
 
@@ -96,9 +96,9 @@ func main() {
 	//实际字符串 "tom" 存储在其他内存位置
 
 	// 结构体赋值
-	var u3 User = u1                            // 将 u1 的值拷贝了一份给 u3
-	fmt.Printf("user3 底层对象地址: %p\n", &u3) // u1 和 u3 的内存地址不同
-	fmt.Printf("u1 == u3 ? %t\n", u1 == u3)     // true，值相等
+	var u3 User = u1                        // 将 u1 的值拷贝了一份给 u3
+	fmt.Printf("user3 底层对象地址: %p\n", &u3)   // u1 和 u3 的内存地址不同
+	fmt.Printf("u1 == u3 ? %t\n", u1 == u3) // true，值相等
 
 	// 修改 u1，u2 不受影响
 	u1.age = 99

@@ -370,8 +370,7 @@ func SayHello() {
 }
 ```
 
-如果想要不对外暴露的话，只需将名称首字母改为小写即可，例如下方代码
-
+如果想要不对外暴露的话，只需将名称首字母改为小写即可，例如：
 ```go
 package utils
 
@@ -1306,8 +1305,6 @@ eg：
 "这是一个普通字符串\n"
 "abcdefghijlmn\nopqrst\t\\uvwxyz"
 ```
-输出结果
-
 
 #### 格式化输出
 常用格式化输出：
@@ -1836,11 +1833,12 @@ fmt.Println(z)
 
 可以看到，只有比较同一变量时结果才是 true，而与 NaN 值比较时则永远为 false。同时将 x 和 y 相加，赋值给变量 z 输出结果为 NaN。
 
-##### 字符串
-###### 字符
+#### 字符
 Golang 中没有专门的`char`字符类型，如果要存储单个字符(字母)，一般使用 `byte` 来保存，且使用单引号包裹。
 
-- byte
+1. byte类型（uint8的别名）
+- 类型别名：`type byte = uint8`
+- 表示单个字节，通常用于ASCII字符，取值范围0-255
 ```go 
 // byte是uint8的别名，用于表示 ASCII 字符（单字节字符）
 var c1 byte = 'A' // 65  
@@ -1862,18 +1860,129 @@ fmt.Printf("c4=%d", c4) // 输出B
 - 保存的字符对应码值大于 255，这时我们可以考虑使用 int 类型保存
 - 字符可以和整型进行运算
 
-- rune
+2. rune类型（int32的别名）
+- 类型别名：`type rune = int32`
+- 表示Unicode码点，可以处理所有Unicode字符
+- Go语言的默认字符类型
+- 取值范围：-2^31 到 2^31 -1
 ```go
 // 2.rune是int32的别名，Unicode 字符（支持中文、表情等）  
-var r1 rune = '你' // 20320  
-fmt.Printf("r1=%c", r1)  // 输出你
-fmt.Printf("r1=%d\n", r1)  // 输出20320
+var r1 rune = '你'         // 20320  
+fmt.Printf("r1=%c\t", r1) // 输出字符  
+fmt.Printf("r1=%d\t", r1) // 输出值  
+fmt.Printf("r1=%U\n", r1) // 输出Unicode码
   
 var f1 rune = '🚀'  
 fmt.Printf("f1=%c", f1) // 输出火箭🚀
 ```
 - `int32` 的别名（4 字节），用于表示 **Unicode 字符**（支持中文、表情等）
 
+字符字面量
+```go
+'a' // ASCII字符 
+'中' // Unicode字符 
+'\n' // 转义字符 
+'\x41' // 十六进制表示的字符（A） 
+'\u4e2d' // Unicode转义序列（中） 
+'\U00004e2d' // 长Unicode转义序列
+```
+
+处理字符串中的得字符 eg：
+```go
+str := "hello,你好 yeah"  
+// 第一种：通过索引访问字符串中的每个字节  
+for i := 0; i < len(str); i++ {  
+    fmt.Printf("索引%d %c ", i, str[i]) // 按字节访问，中文会乱码  
+}  
+// 第二种：按照rune进行遍历  
+// 用range遍历字符串时，Go会自动将UTF-8编码的字节序列解码为Unicode字符（rune），而不是简单地逐字节遍历。  
+for i, r := range str {  
+    fmt.Printf("索引%d %c\n ", i, r) // 按字符访问，r是字符的索引  
+}  
+  
+// 第三种：将字符串转换为rune切片，切片与数组类似，但更灵活。切片是不定长的，切片在容量不够时会自行扩容。  
+var runeSline []rune = []rune(str) // []rune就是一个rune类型的切片，切片通常使用make()函数来创建  
+for i, r := range runeSline {  
+    fmt.Printf("索引%d %c\n ", i, r) // 按字符访问，r是字符的索引  
+}
+```
+
+unicode包中，有一些针对测试字符  
+```go
+import "unicode"
+
+fmt.Println(unicode.IsLetter('a')) // 判断是否为字母  
+fmt.Println(unicode.IsDigit('1'))  // 判断是否为数字  
+fmt.Println(unicode.IsSpace(' '))  // 判断是否为空白字符  
+fmt.Println(unicode.IsUpper('a'))  // 判断是否为大写字母  
+fmt.Println(unicode.ToLower('A'))  // 将字符转化为小写  
+fmt.Println(unicode.ToUpper('a'))  // 将字符转化为大写
+```
+
+包 `utf8` 拥有更多与 rune 相关的函数
+```go
+import "unicode/utf8"
+
+// 字符与字符串的关系  
+var str2 string = "hello你好"   
+// 获取每个字符  
+for i, r := range str2 {  
+    fmt.Printf("字符索引%d %c\n", i, r) // 按字符访问，r是字符的索引  
+}  
+  
+// 输出每个字节  
+for i := 0; i < len(str2); i++ {  
+    fmt.Printf("字节[%d]: %d ('%c')\n", i, str2[i], str2[i])  
+}
+
+// 字符串本质是 UTF-8 编码的字节序列  
+fmt.Printf("字符串：%s\n", str2)  
+fmt.Printf("字节长度：%d\n", len(str2))  // 字节5个英文+两个中文，每个中文3个字节，共11个字节  
+fmt.Printf("字符长度：%d\n", utf8.RuneCountInString(str)) // 字符串中有多少个字符
+```
+
+#### 字符串
+字符串是 UTF-8 字符的一个序列（当字符为 ASCII 码时则占用 1 个字节，其它字符根据需要占用 2-4 个字节）。
+Go 中的字符串也可能根据需要占用 1 至 4 个字节，这与其它语言如 C++、Java 或者 Python 不同（Java 始终使用 2 个字节）。Go 这样做的好处是不仅减少了内存和硬盘空间占用，同时也不用像其它语言那样需要对使用 UTF-8 字符集的文本进行编码和解码。
+
+**字面量**
+**普通字符串**：由`""`双引号表示，支持转义，不支持多行书写，下列是一些普通字符串
+```go
+var str1 string = "这是一个普通字符串\nabcd\t123\\zyx"  
+fmt.Printf("str1=%s\n", str1)
+```
+
+**原生字符串**：由反引号表示，不支持转义，支持多行书写，原生字符串里面所有的字符都会原封不动的输出，包括换行和缩进。
+```go
+var str string = `这是一个原生字符串，换行  
+  tab缩进，\t制表符但是无效,换行  
+  "这是一个普通字符串"  
+  
+  结束  
+`  
+fmt.Println(str)
+```
+
+
+Go 字符串是一个不可变、只读的字节切片。即创建某个文本后你无法再次修改这个文本的内容。
+```go
+str2 := "hello"  
+//str2[0] = 'a' // 编译报错
+```
+
+go字符串在底层，字符串由字节数组支撑。默认情况下，Go 源代码以 UTF-8 编码。
+
+Ascii 即字节可以通过来直接获取，本质上是使用byte字节类型存放，但是如果是中文、阿拉伯文字等类型，则需要使用rune类型存放即Unicode 。
+- byte：Go 字符串的基本单位。一个字节8位。  
+- rune：Go 语言中的 rune 是 int32 类型的别名。它代表一个单一的 Unicode 码点。  像 'A' 这样的字符可以用一个字节表示，但像 '中' 这样的字符在 UTF-8 中需要三个字节。 rune 可以表示任意一个。
+
+通过函数 `len()` 来获取字符串所占的字节长度。
+```go
+// 通过索引访问字符串中的每个字节  
+for i := 0; i < len(str); i++ {  
+    fmt.Printf("索引%d %c ", i, str[i]) // 按字节访问，中文会乱码  
+}
+```
 
 #### 类型别名
 
