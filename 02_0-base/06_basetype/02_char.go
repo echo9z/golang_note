@@ -38,27 +38,32 @@ func main() {
 	fmt.Printf("r1=%d\t", r1) // 输出值
 	fmt.Printf("r1=%U\n", r1) // 输出Unicode码
 
+	var r2 rune = 'a'
+	fmt.Printf("r2=%d\n", r2) // 输出字符a
+
 	var f1 rune = '🚀'
 	fmt.Printf("f1=%c\n", f1) // 输出火箭
 
-	// 处理字符串中的得字符
+	// 处理字符串中的每一个字符
 	str := "hello,你好 yeah"
 
-	// 第一种：通过索引访问字符串中的每个字节
+	// 第一种：通过索引访问字符串中的每个字节（不推荐处理Unicode）
+	fmt.Println("按照字节遍历：")
 	for i := 0; i < len(str); i++ {
-		fmt.Printf("索引%d %c ", i, str[i]) // 按字节访问，中文会乱码
+		fmt.Printf("索引：%d 字符：%c \n", i, str[i]) // 按字节访问，中文会乱码
 	}
-	fmt.Println("------")
 	// 第二种：按照rune进行遍历
 	// 用range遍历字符串时，Go会自动将UTF-8编码的字节序列解码为Unicode字符（rune），而不是简单地逐字节遍历。
-	for i, r := range str {
-		fmt.Printf("索引%d %c\n ", i, r) // 按字符访问，r是字符的索引
+	fmt.Println("使用 range遍历")
+	for i, char := range str {
+		fmt.Printf("索引%d %c (Unicode: %U)\n ", i, char, char) // 按字符访问，r是字符的索引
 	}
 
 	// 第三种：将字符串转换为rune切片，切片与数组类似，但更灵活。切片是不定长的，切片在容量不够时会自行扩容。
-	var runeSline []rune = []rune(str) // []rune就是一个rune类型的切片，切片通常使用make()函数来创建
-	for i, r := range runeSline {
-		fmt.Printf("索引%d %c\n ", i, r) // 按字符访问，r是字符的索引
+	fmt.Println("转换为 rune 切片")
+	var runeSlice []rune = []rune(str) // []rune就是一个rune类型的切片，切片通常使用make()函数来创建
+	for i, char := range runeSlice {
+		fmt.Printf("索引%d %c (Unicode: %d)\n ", i, char, char) // 按字符访问，r是字符的索引
 	}
 
 	// unicode包中，有一些针对测试字符
@@ -70,7 +75,7 @@ func main() {
 	fmt.Println(unicode.ToUpper('a'))  // 将字符转化为大写
 
 	// 字符与字符串的关系
-	var str2 string = "hello你好"
+	var str2 string = "ahello你好"
 	// 获取每个字符
 	for i, r := range str2 {
 		fmt.Printf("字符索引%d %c\n", i, r) // 按字符访问，r是字符的索引
@@ -82,8 +87,8 @@ func main() {
 	}
 
 	// 字符串本质是 UTF-8 编码的字节序列
-	fmt.Printf("字符串：%s\n", str2)
-	fmt.Printf("字节长度：%d\n", len(str2))                   // 字节5个英文+两个中文，每个中文3个字节，共11个字节
-	fmt.Printf("字符长度：%d\n", utf8.RuneCountInString(str)) // 字符串中有多少个字符
+	fmt.Printf("字符串：%s\n", str2)                          // %s字符串形式输出
+	fmt.Printf("字节长度：%d\n", len(str2))                    // 字节5个英文+两个中文，每个中文3个字节，共11个字节
+	fmt.Printf("字符长度：%d\n", utf8.RuneCountInString(str2)) // 字符串中有多少个字符 7个
 
 }

@@ -3,3 +3,6 @@
 .obsidian
 pkg
 .smart-env
+.claude
+CLAUDE.md
+.mcp.json

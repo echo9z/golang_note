@@ -1460,6 +1460,20 @@ var nil Type
 
 并且`nil == nil`这样的语句是无法通过编译的。
 
+#### 类型别名
+
+在使用某个类型时，可以给它起另一个名字，然后给变量使用新的名字（用于简化名称或解决名称冲突）。
+```go
+type MyInt int
+
+func main() {
+    var aVle, bVle MyInt = 10, 20  
+    cVle := aVle + bVle // MyInt 类型为 int类型的别名  
+    fmt.Printf("value: %d", cVle)  
+}
+```
+
+
 #### 零值机制
 Go变量初始化会自带默认值，比如java其他语言为空，js中为undefined，下面列出各种数据类型对应的0值：
 
@@ -1893,7 +1907,7 @@ str := "hello,你好 yeah"
 // 第一种：通过索引访问字符串中的每个字节  
 for i := 0; i < len(str); i++ {  
     fmt.Printf("索引%d %c ", i, str[i]) // 按字节访问，中文会乱码  
-}  
+} 
 // 第二种：按照rune进行遍历  
 // 用range遍历字符串时，Go会自动将UTF-8编码的字节序列解码为Unicode字符（rune），而不是简单地逐字节遍历。  
 for i, r := range str {  
@@ -1938,12 +1952,12 @@ for i := 0; i < len(str2); i++ {
 // 字符串本质是 UTF-8 编码的字节序列  
 fmt.Printf("字符串：%s\n", str2)  
 fmt.Printf("字节长度：%d\n", len(str2))  // 字节5个英文+两个中文，每个中文3个字节，共11个字节  
-fmt.Printf("字符长度：%d\n", utf8.RuneCountInString(str)) // 字符串中有多少个字符
+fmt.Printf("字符长度：%d\n", utf8.RuneCountInString(str2)) // 字符串中有多少个字符 7个
 ```
 
 #### 字符串
 字符串是 UTF-8 字符的一个序列（当字符为 ASCII 码时则占用 1 个字节，其它字符根据需要占用 2-4 个字节）。
-Go 中的字符串也可能根据需要占用 1 至 4 个字节，这与其它语言如 C++、Java 或者 Python 不同（Java 始终使用 2 个字节）。Go 这样做的好处是不仅减少了内存和硬盘空间占用，同时也不用像其它语言那样需要对使用 UTF-8 字符集的文本进行编码和解码。
+Go 中的字符串也可能根据需要，占用 1 至 4 个字节，这与其它语言如 C++、Java 或者 Python 不同（Java 始终使用 2 个字节）。Go 这样做的好处是不仅减少了内存和硬盘空间占用，同时也不用像其它语言那样需要对使用 UTF-8 字符集的文本进行编码和解码。
 
 **字面量**
 **普通字符串**：由`""`双引号表示，支持转义，不支持多行书写，下列是一些普通字符串
@@ -1967,10 +1981,16 @@ fmt.Println(str)
 Go 字符串是一个不可变、只读的字节切片。即创建某个文本后你无法再次修改这个文本的内容。
 ```go
 str2 := "hello"  
-//str2[0] = 'a' // 编译报错
+// str2[0] = 'H' // 编译错误：cannot assign to s[0]
+
+// 需要修改字符串，可以转换为[]byte或[]rune切片，修改后再转换为字符串
+byteSlice := []byte(str2)
+byteSlice[0] = 'H'
+str2 = string(byteSlice) // 将byte切片通过 string() 转换为字符串
+fmt.Println("1修改后str2:", str2)
 ```
 
-go字符串在底层，字符串由字节数组支撑。默认情况下，Go 源代码以 UTF-8 编码。
+go字符串在底层，字符串由字节数组支撑。默认情况下，Go 源代码以 UTF-8 编码。相关阅读：[Go 数据结构](https://research.swtch.com/godata)
 
 Ascii 即字节可以通过来直接获取，本质上是使用byte字节类型存放，但是如果是中文、阿拉伯文字等类型，则需要使用rune类型存放即Unicode 。
 - byte：Go 字符串的基本单位。一个字节8位。  
@@ -1984,15 +2004,39 @@ for i := 0; i < len(str); i++ {
 }
 ```
 
-#### 类型别名
+获取字符串长度，可以通过函数 `len()` 来获取字符串所占的字节长度，只对ASCII 码的字符串有效
+索引从 0 开始计数：
+- 字符串 str 的第 1 个字节：`str[0]`
+- 第 i 个字节：`str[i - 1]`
+- 最后 1 个字节：`str[len(str)-1]`
 
-在使用某个类型时，可以给它起另一个名字，然后给变量使用新的名字（用于简化名称或解决名称冲突）。
+使用utf8包，通过Rune统计符串中的 Unicode 字符数量，常用于比如中文、阿拉伯文。 
 ```go
-type MyInt int
+import "unicode/utf8"
 
-func main() {
-    var aVle, bVle MyInt = 10, 20  
-    cVle := aVle + bVle // MyInt 类型为 int类型的别名  
-    fmt.Printf("value: %d", cVle)  
-}
+str2 := "hello世界"
+// len() 返回的是字节数，不是字符数
+fmt.Printf("str2字节长度：%d\n", len(str2)) // 字节长度 11
+
+// 方法1：使用 utf8.RuneCountInString (推荐)
+fmt.Printf("str2字符长度：%d\n", utf8.RuneCountInString(str2)) // 使用utf8包，通过Rune统计符串中的 Unicode 字符数量 7
+
+// 方法2：转换为 rune 切片
+fmt.Printf("str2字符长度：%d\n", len([]rune(str2))) // 通过切片返回字符长度。将字符串 str2 转换为 rune切片，rune 在 Go 中代表单个 Unicode 字符这个转换会正确处理多字节字符（如中文）， 再获取 rune 切片的长度 7--
+```
+UTF-8 是变长编码，一个字符可能占 1-4 个字节：
+```go
+// ASCII 字符：1 字节
+'A'     → 0x41                    (1 字节)
+
+// 中文字符：通常 3 字节
+'中'    → 0xE4 0xB8 0xAD          (3 字节)
+'世'    → 0xE4 0xB8 0x96          (3 字节)
+
+// 阿拉伯文：2-3 字节
+'ا'     → 0xD8 0xA7               (2 字节)
+'م'     → 0xD9 0x85               (2 字节)
+
+// Emoji：4 字节
+'😀'    → 0xF0 0x9F 0x98 0x80     (4 字节)
 ```
