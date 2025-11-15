@@ -49,38 +49,56 @@ func main() {
 
 	// 4.字符串通过索引进行访问
 	var str3 string = "Hello世界"
-	fmt.Printf("字节长度：%d \n", len(str3)) // 11
+	fmt.Printf("字节长度：%d \n", len(str3))                    // 11
 	fmt.Printf("字节长度：%d \n", utf8.RuneCountInString(str3)) // 7
 	// 通过索引访问是字节，
-	fmt.Printf("s[0]=%c 字节值：%d\n",str3[0], str3[0])
-	fmt.Printf("s[5]=%c 字节值：%d\n",str3[5], str3[5]) // 访问”世”  s[5]=ä 字节值：228，访问包含 3 个字节中的 1 个
-	// 通过切片方式截取多个字节访问范文，但存在可能乱码问题
-	fmt.Printf("s[0]=%c 字节值：%d\n",str3[0], str3[0])
-	fmt
+	fmt.Printf("s[0]=%c 字节值：%d\n", str3[0], str3[0])
+	fmt.Printf("s[5]=%c 字节值：%d\n", str3[5], str3[5]) // 访问”世” s[5]=ä 字节值：228，访问包含 3 个字节中的 1 个
+	// 通过切片方式,截取多个字节访问范文，但存在可能乱码问题
+	fmt.Printf("s[0:6]=%s\n", str3[0:6]) // 左包右闭0~5 s[0:6]=Hello�
+	fmt.Printf("s[0:8]=%s\n", str3[0:8]) // s[0:8]=Hello世
+	fmt.Printf("s[5:8]=%s\n", str3[5:8]) // 4~7 s[5:8]=世
 
-	// 5.字符串操作
-	// 字符串拼接 +
+	// 5.字符串遍历
+	str5 := "Hello世界مرحبا😀"
+	// 1.通过字节遍历 对于非ASCII字符会显示乱码
+	for i := 0; i < len(str5); i++ {
+		fmt.Printf("索引 %d, 字节 %c, 字符 %c\n", i, str5[i], str5[i])
+	}
+	
+	// 2.range遍历字符串，按字符遍历，不会乱码
+	for i, char := range str5 {
+		fmt.Printf("索引 %d, 字节 %c, 字符 %c\n", i, char, char)
+	}
+
+	// 3.rune 字符串转成 rune[] 切片遍历
+	var strRuneSlice []rune = []rune(str5)
+	for i, char := range strRuneSlice {
+		fmt.Printf("索引 %d, 字符 %c, Unicode %U\n", i, char, char)
+	}
+
+	// 6.字符串操作
+	// 方式1：字符串拼接 +
 	s1 := "hello"
 	s2 := "你好"
 	s3 := s1 + s2
-	fmt.Printf("字符串拼接 %s \n",s3)
+	fmt.Printf("字符串拼接 %s \n", s3)
 
-	// Sprintf方式  Sprint 使用其操作数的默认格式进行格式化，并返回结果字符串。当操作数既不是字符串时，会在操作数之间添加空格
-	s4 := fmt.Sprintf("%s %s \n","yes", "no")
-	fmt.Println("Fprintf拼接",s4)
+	// 方式2：Sprintf方式  Sprint 使用其操作数的默认格式进行格式化，并返回结果字符串。当操作数既不是字符串时，会在操作数之间添加空格
+	s4 := fmt.Sprintf("%s %s \n", "yes", "no")
+	fmt.Println("Fprintf拼接", s4)
 
-	// 使用strings包中join函数strings.Join（拼接切片）
+	// 方式3：使用strings包中join函数strings.Join（拼接切片）
 	var parts []string = []string{"yellow", "green"} // 定义切片，，不定义长度，，切实长度是可变的
-	s5 := strings.Join(parts, ",")// Join两个参数 切片,拼接的字符
+	s5 := strings.Join(parts, ",")                   // Join两个参数 切片,拼接的字符
 	fmt.Println("strings.Join:", s5)
 
 	// 方式4：strings.Builder（高性能，循环拼接推荐）
 	var builderStr strings.Builder // 声明一个高效的字符串类型
-	for i := 0; i< 10; i++ {
-		builderStr.WriteString("cc") // 高效追加字符串到Builder中 
+	for i := 0; i < 10; i++ {
+		builderStr.WriteString("cc") // 高效追加字符串到Builder中
 	}
 	var res string = builderStr.String()
 	fmt.Println("strings.Builder:", res)
 
-	
 }
