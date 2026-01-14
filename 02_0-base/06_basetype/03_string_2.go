@@ -12,6 +12,6 @@ func main() {
 	// 按照指定字符进行分割
 	var res []string = strings.Split(str, ",")
 	// 返回字符串切片
-	fmt.Println(res)
+	fmt.Println(res) // [a b c d e]
 	
 }
