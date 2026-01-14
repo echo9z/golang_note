@@ -10,7 +10,7 @@ func main() {
 	// Split：根据指定的分隔符将字符串分割成多个子串，并返回一个字符串切片。
 	str := "a,b,c,d,e"
 	// 按照指定字符进行分割
-	let res string[] = strings.Split(str, ",")
+	var res []string = strings.Split(str, ",")
 	// 返回字符串切片
 	fmt.Println(res)
 	
