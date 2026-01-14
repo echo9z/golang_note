@@ -15,7 +15,7 @@ func main() {
 	fmt.Println(res) // [a b c d e]
 	
 	// 通过切片遍历
-	for idx, v := range res {
-		
+	for idx, val := range res {
+		fmt.Printf("index %d：%")
 	}
 }
