@@ -14,7 +14,7 @@ func main() {
 	// Fields：根据空白字符（空格、制表符、换行符等）分割字符串。
 	// FieldsFunc：根据传入的函数来决定分割符。
 
-	// Split
+	// 1.Split 按分隔符分割
 	str := "a,b,c,d,e"
 	// 按照指定字符进行分割
 	var res []string = strings.Split(str, ",")
@@ -26,5 +26,8 @@ func main() {
 		fmt.Printf("index %d：%s\n", idx, val)
 	}
 
+	// 2.SplitN 按分隔符分割，指定分割次数
+	str2 := "a,b,c,d,e"
+	// 
 	
 }
