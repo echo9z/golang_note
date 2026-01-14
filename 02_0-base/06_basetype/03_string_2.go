@@ -14,4 +14,6 @@ func main() {
 	// 返回字符串切片
 	fmt.Println(res) // [a b c d e]
 	
+	// 通过切片遍历
+	
 }
