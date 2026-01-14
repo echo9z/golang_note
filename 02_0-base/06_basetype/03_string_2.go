@@ -15,6 +15,6 @@ func main() {
 	fmt.Println(res) // [a b c d e]
 	
 	// 通过切片遍历
-	str
+	for
 	
 }
