@@ -1850,6 +1850,34 @@ fmt.Println(z)
 #### 数组
 如果事先就知道了要存放数据的长度，且后续使用中不会有扩容的需求，就可以考虑使用数组，Go 中的数组是值类型，而非引用，并不是指向头部元素的指针。
 
+##### 声明数组
+```go
+// 每个元素是一个整型值，当声明数组时所有的元素都会被自动初始化为默认值 0。
+var arr1 [5]int   // 声明了一个长度为5组，默认值都是0
+fmt.Println(arr1) // [0 0 0 0 0]
+
+// 声明并初始化
+var arr2 = [5]int{51, 25, 30,50,63}
+fmt.Println(arr2) // [51 25 30 50 63]
+
+// 初始化部分元素
+var arr3 = [5]int{51,36,9}
+fmt.Println(arr3) // [51 36 9 0 0]
+
+// 编译器自己推断数组长度
+var arr4 = [...]int{12, 25, 35, 40}
+fmt.Println(len(arr4)) // 4
+
+// 指定索引初始化
+var arr5 = [5]int{0: 10, 4: 82} // arr5[0]=10, arr5[4]=82, 其他为0
+fmt.Println(arr5) // [10 0 0 0 82]
+
+// 简短声明
+arr6 := [3]string{"hello", "gg", "ok"}
+fmt.Println(arr6) // [hello gg ok] 
+```
+
+
 #### 切片
 
 #### 字符
@@ -2026,13 +2054,6 @@ var res string = builderStr.String()
 fmt.Println("strings.Builder:", res)
 ```
 
-##### 字符串分割
-- Split：根据指定的分隔符将字符串分割成多个子串，并返回一个切片。
-- SplitN：根据指定的分隔符将字符串分割成多个子串，但是可以指定分割的次数（返回的子串个数最多为n）。
-- SplitAfter：根据指定的分隔符将字符串分割成多个子串，但是分隔符会包含在子串中。
-- SplitAfterN：类似于SplitAfter，但是可以指定分割的次数。
-- Fields：根据空白字符（空格、制表符、换行符等）分割字符串。
-
 ##### 字符串长度
 获取字符串长度，可以通过函数 `len()` 来获取字符串所占的字节长度，只对ASCII 码的字符串有效
 索引从 0 开始计数：
@@ -2044,6 +2065,17 @@ fmt.Println("strings.Builder:", res)
 ```go
 import "unicode/utf8"
 
+// Go中的字符串默认使用UTF-8编码，UTF-8是一种变长编码方式：
+ss1 := "A" // ascii字符 1个字节
+ss2 := "中" // 中文：3个字节
+ss3 := "𝄞" // 音乐符号：4个字节
+ss4 := "é" //带重音的拉丁字符：2字节
+fmt.Printf("ss1所占的字节：%d\n", len(ss1)) // 1
+fmt.Printf("ss2所占的字节：%d\n", len(ss2)) // 3
+fmt.Printf("ss3所占的字节：%d\n", len(ss3)) // 4
+fmt.Printf("ss4所占的字节：%d\n", len(ss4)) // 2
+
+// 混合字符串
 str2 := "hello世界"
 // len() 返回的是字节数，不是字符数
 fmt.Printf("str2字节长度：%d\n", len(str2)) // 字节长度 11
@@ -2054,6 +2086,8 @@ fmt.Printf("str2字符长度：%d\n", utf8.RuneCountInString(str2)) // 使用utf
 // 方法2：转换为 rune 切片
 fmt.Printf("str2字符长度：%d\n", len([]rune(str2))) // 通过切片返回字符长度。将字符串 str2 转换为 rune切片，rune 在 Go 中代表单个 Unicode 字符这个转换会正确处理多字节字符（如中文）， 再获取 rune 切片的长度 7--
 ```
+ 再统计字符串长度时，使用`utf8.RuneCountInString(s string)`进行统计。
+
 UTF-8 是变长编码，一个字符可能占 1-4 个字节：
 ```go
 // ASCII 字符：1 字节
@@ -2071,11 +2105,489 @@ UTF-8 是变长编码，一个字符可能占 1-4 个字节：
 '😀'    → 0xF0 0x9F 0x98 0x80     (4 字节)
 ```
 
-字符串遍历
-通过函数 `len()` 来获取字符串所占的字节长度。
+字符串与byte、rune的关系
+Go中有三个相关概念需要区分：
+- **byte**：单个字节（uint8的别名）
+- **rune**：Unicode代码点（int32的别名）
+- **string**：UTF-8编码的字节序列
+
+##### 字符串遍历
+通过函数 `len()` 来获取字符串所占的字节长度进行遍历。
 ```go
+str5 := "Hello世界مرحبا😀"
+
 // 通过索引访问字符串中的每个字节  
 for i := 0; i < len(str); i++ {  
-    fmt.Printf("索引%d %c ", i, str[i]) // 按字节访问，中文会乱码  
+    fmt.Printf("索引%d %c ", i, str[i]) // 按字节访问，对于非ASCII字符会显示乱码
 }
 ```
+
+通过go中range关键字遍历，自动解码UTF-8，得到完整的Unicode字符
+```go
+// range遍历字符串，按字符遍历，不会乱码
+for i, char := range str5 {
+    fmt.Printf("索引 %d, 字节 %c, 字符 %c\n", i, char, char)
+}
+```
+- `str5` 是一个字符串
+- `range` 会逐个遍历字符串中的每个字符（rune）
+- `i` 是字符在字符串中的**字节位置**（索引）
+- `char` 是当前遍历到的**字符**（rune 类型）
+
+rune 字符串转成 `rune[]`切片遍历
+```go
+// 字符串转成 rune[] 切片遍历
+var strRuneSlice []rune = []rune(str5)
+for i, char := range strRuneSlice {
+    fmt.Printf("索引 %d, 字符 %c, Unicode %U\n", i, char, char)
+}
+```
+
+##### 字符串分割
+- Split：根据指定的分隔符将字符串分割成多个子串，并返回一个切片。
+- SplitN：根据指定的分隔符将字符串分割成多个子串，但是可以指定分割的次数（返回的子串个数最多为n）。
+- SplitAfter：根据指定的分隔符将字符串分割成多个子串，但是分隔符会包含在子串中。
+- SplitAfterN：类似于SplitAfter，但是可以指定分割的次数。
+- Fields：根据空白字符（空格、制表符、换行符等）分割字符串。
+
+1.Split 按分隔符分割
+```go
+	str := "a,b,c,d,e"
+	// 按照指定字符进行分割
+	var res []string = strings.Split(str, ",")
+	// 返回字符串切片
+	fmt.Println(res) // [a b c d e]
+
+	// 通过切片遍历
+	for idx, val := range res {
+		fmt.Printf("index %d：%s\n", idx, val)
+	}
+```
+
+2.SplitN 按分隔符分割，指定分割次数
+```go
+	str2 := "a,b,c,d,e"
+	// n 表示每次分割的字串数量
+	// n > 0：最多返回 n 个子字符串；最后一个子字符串将是未分割的剩余部分；
+	var par []string = strings.SplitN(str2, ",", 2)
+	fmt.Println(par) // [a b,c,d,e] a 和 b,c,d,e 两个字符串元素
+	rangStr(par)
+	
+	// n=0 返回nil 空值 （零个子字符串）
+	var par2 []string = strings.SplitN(str2, ",", 0)
+	fmt.Println(par2)
+
+	// n=-1 无限制分割（等同于 Split）
+	var par3 []string = strings.SplitN(str2, ",", -1)
+	fmt.Println(par3
+```
+- **n > 0**: 最多返回 n 个子字符串，最后一个子字符串包含剩余的未分割部分
+- **n == 0**: 返回 nil（空切片）
+- **n < 0**: 不限制分割次数，等同于 `Split()`
+
+3.SplitAfter 分割后保留分隔符
+```go
+	str3 := "apple|banana|orange"
+	var ful []string = strings.SplitAfter(str3, "|")
+	fmt.Println(ful) // [apple| banana| orange] 每个元素都包含分隔符
+```
+
+4.SplitAfterN：限制分割次数并保留分隔符
+```go
+	str4 := "apple|banana|orange|grape|pull"
+	var ful2 []string = strings.SplitAfterN(str4, "|", 2) // [apple| banana|orange|grape|pull]
+	fmt.Println(ful2)
+	rangStr(ful2)
+```
+
+5.Fields 按照空白字符（空格、制表符、换行符等）分割字符串
+```go
+	// 自动识别连续的空白字符作为一个分隔符
+	// 自动去除字符串首尾的空白字符
+	// 返回的切片中不包含空字符串
+	str5 := "  apple  banana   orange  \n grape  \t kiwi \n 123 "
+	fie := strings.Fields(str5)
+	fmt.Println(fie) // [apple banana orange grape kiwi 123]
+```
+
+6.FieldsFunc(str,func) 根据自定义函数来决定分割规则
+```go
+	// func 传入一个函数，参数为rune字符类型，返回 bool
+	// 返回 true: 该字符作为分隔符
+	// 返回 false: 该字符不是分隔符
+	str6 := "abc, 455;ufg|kill:open"
+	// 按多个字符分割
+	var fie2 []string = strings.FieldsFunc(str6, func(r rune) bool {
+		fmt.Printf("char: %c\n", r)
+		// 当前字符为, ; | : 时，进行分割
+		return r == ',' || r == ';' || r == '|' || r == ':'
+	})
+	fmt.Println(fie2) // abc  455 ufg kill open
+	
+	str7 := "Hello, World! 123 Go."
+	// 只按字母分割（保留非字母字符）
+	var fie3 []string = strings.FieldsFunc(str7, func(r rune) bool {
+		// 去unicode值不在a-z 或者A-Z之间，即将a-z A-Z的字母全部截取，只保留字符[,  ! 123  .]
+		return (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z')
+	})
+	fmt.Println(fie3)
+```
+
+Split例子
+```go
+func splitEg() {
+	// 案例一：文件分割
+	path := "/home/user/documents/file.txt"
+	// Split 会在路径中最后一个分隔符之后立即拆分，将其分为目录和文件名部分。如果路径中没有分隔符，Split 会返回空的目录，并将文件设置为路径本身。
+	dir, file := filepath.Split(path)
+	fmt.Printf("目录：%s 文件名：%s \n", dir, file)
+
+	// 分割文件扩展名
+	ext := filepath.Ext(file) // .txt
+	// 字符串切片语法：s[start:end] 截取从 start 到 end（不包括 end）的子串
+	name := file[:len(file)-len(ext)] // file[:8-4] 截取从索引0到4的子串，即 "file"
+	fmt.Println("file name：", name)
+
+	// 案例二：URL 路径分割
+	url := "https://example.com/path/to/resource?query=value"
+	parts := strings.SplitN(url, "://", 2) // 在://进行分割 分割成两部分
+	if len(parts) == 2 {
+		protocol := parts[0]
+		rest := parts[1]
+		fmt.Printf("协议：%s，路径：%s \n", protocol, rest)
+		
+		// 分割域名 和 路径
+		var domainPath []string = strings.SplitN(rest, "/", 2) // example.com 和 /path/to/resource?query=value
+		domain := domainPath[0]
+		path := "/" + domainPath[1]
+		fmt.Printf("域名：%s，路径：%s", domain, path)
+	}
+}
+```
+
+##### 字符串比较
+```go
+	// 基础运算符比较
+	fruit1 := "apply" 
+	fruit2 := "banana" 
+	fruit3 := "apply" 
+
+	fmt.Println(fruit1 == fruit2) // false
+	fmt.Println(fruit1 == fruit3) // true
+	fmt.Println(fruit1 != fruit3) // false
+	
+	// 字典顺序比较规则：
+	fmt.Println(fruit1 < fruit2) // true （"apple" < "banana"）
+	fmt.Println(fruit1 <= fruit3) // true
+	fmt.Println(fruit1 >= fruit3) // true
+	// 字典顺序比较规则：
+	// 从第一个字符开始逐个比较 Unicode 码点
+	// 所有大写字母排在小写字母之前
+	// 数字排在字母之前
+	// 空格排在可打印字符之前
+	fmt.Println("A" < "a") // true 65<97	
+	fmt.Println("1"< "A") // true 49<65
+	fmt.Println(" "< "1") // true 49<65
+	fmt.Println("apple" < "Apple") // false97 > 65
+
+	// string包的 Compare(a,b) - 三元比较函数
+	fmt.Println(strings.Compare("apply", "banana")) // 第一个参数小于第二个参数，输出为-1
+	fmt.Println(strings.Compare("apply", "apply")) // 两参数相等为0
+	fmt.Println(strings.Compare("banana", "apply")) // 第一个参数比第二参数大，输出1
+	// strings.Compare 通常不推荐使用，因为直接使用 ==、<、> 运算符更直观且性能更好。
+	// strings.EqualFold() - 不区分大小写比较
+	fmt.Println("不区分大小写：", strings.EqualFold("gO", "Go"))
+```
+
+
+##### strings 和 strconv 包
+作为一种基本数据结构，每种语言都有一些对于字符串的预定义处理函数。Go 中使用 `strings` 包来完成对字符串的主要操作。
+
+判断字符串
+```go
+// 判断字符串s 是否以 prefix开头
+fmt.Println(strings.HasPrefix("hello ok", "He")) // false
+// 判断字符串s 是否以 suffix 结尾
+fmt.Println(strings.HasSuffix("hello ok", "ok")) // true
+```
+
+查找字符位置
+```go
+fmt.Println(strings.Index("hello a你好", "a你"))    // 7 查找字符串第一次出现的位置，未找到返回 -1
+fmt.Println(strings.LastIndex("hello a你好", "好")) // 10 查找字符串，最后一次出现的位置，未找到返回 -1
+// 返回 s 中字符中任意 Unicode 码点的第一个字符索引
+fmt.Println(strings.IndexAny("hello a你好", "abced")) // 索引1 取到e字符
+// IndexByte只能查找 ASCII 字符（0-255 范围内的单个字符）
+fmt.Println(strings.IndexByte("hello a你好", 'a')) // 索引6 获取字节第一次出现的位置
+fmt.Println(strings.IndexRune("hello a你好", '你')) // 索引7 rune 第一次出现的位置
+```
+
+字符串替换
+```go
+// Replace(s, old, new, n) 将s字符串中 old字符，替换为new字符，替换前第n个匹配到字符
+fmt.Println(strings.Replace("hello hello ok", "ll", "LL", 1)) // heLLo hello ok
+fmt.Println(strings.ReplaceAll("hello hello ok", "ll", "LL")) // 将全部替换匹配到字符串 heLLo heLLo ok
+
+// NewReplacer(old1, new1, old2, new2):从旧的、新的字符串对列表中返回一个新的 Replacer函数。
+// 替换按照它们在目标字符串中出现的顺序执行，不会重叠匹配。旧的字符串比较是按参数顺序完成的。
+r := strings.NewReplacer("<", "&lt;", ">", "&gt;") // 返回新的replace函数，替换顺序为<替换为&lt; >替换为&gt;
+fmt.Println(r.Replace("This is <b>HTML</b>!")) // This is &lt;b&gt;HTML&lt;/b&gt;!
+```
+
+字符串分割与连接
+```go
+// 分割
+// SplitN 按分隔符分割，指定分割次数
+str2 := "a,b,c,d,e"
+// n 表示每次分割的字串数量
+// n > 0：最多返回 n 个子字符串；最后一个子字符串将是未分割的剩余部分；
+var par []string = strings.SplitN(str2, ",", 2) // 第一次匹配到的","索引时，进行分割成两个字符串部分
+fmt.Println(par)      // [a b,c,d,e] a 和 b,c,d,e 两个字符串元素
+
+for idx, c := range par {
+    fmt.Printf("index: %d %s \n", idx, c)
+}
+
+// n=0 返回nil 空值 （零个子字符串）
+var par2 []string = strings.SplitN(str2, ",", 0)
+fmt.Println(par2)
+
+// n=-1 无限制分割（等同于 Split）
+var par3 []string = strings.SplitN(str2, ",", -1)
+fmt.Println(par3)
+
+// 3.SplitAfter 分割后保留分隔符
+str3 := "apple|banana|orange"
+var ful []string = strings.SplitAfter(str3, "|")
+fmt.Println(ful) // [apple| banana| orange] 每个元素都包含分隔符
+
+// 4.SplitAfterN() - 限制分割次数并保留分隔符
+str4 := "apple|banana|orange|grape|pull"
+var ful2 []string = strings.SplitAfterN(str4, "|", 2) // [apple| banana|orange|grape|pull]
+fmt.Println(ful2)
+
+for idx, c := range ful2 {
+    fmt.Printf("index: %d %s \n", idx, c)
+}
+```
+
+字符串连接
+```go
+// 1.运算符
+s1, s2 := "hello", "world"
+res := s1 + " " + s2
+fmt.Println(res)
+optimizedConcat := func() string {
+    var builder strings.Builder
+    // 如果指定最终字符的大小，可以预分配容量
+    builder.Grow(1024) // 1024个字节
+    for i := 0; i < 1000; i++ {
+        builder.WriteString("a") // 写入字符串
+    }
+    return builder.String()
+}
+fmt.Println(optimizedConcat())
+
+// 2.使用strings.Join（连接切片）
+var parts []string = []string{"a", "b", "c", "d"}
+res2 := strings.Join(parts, "-") // 将切片中元素连接
+fmt.Println(res2) // a-b-c-d
+
+// 3.strings.Repeat() 重复字符串
+strRes := "ba" + strings.Repeat("na", 2)
+fmt.Println(strRes) // banana
+```
+
+大小写转换
+```go
+fmt.Printf("转大写：%s\n", strings.ToUpper("hello")) // 转大写：HELLO
+fmt.Printf("转小写：%s\n", strings.ToUpper("HeLLo")) // 转小写：HELLO
+fmt.Printf("首字母大写：%s\n", strings.ToUpper("HeLLo")) // 首字母大写：HELLO
+fmt.Printf("Unicode格式标题大写：%s\n", strings.ToTitle("HeLLo")) // Unicode格式标题大写：HELLO
+```
+
+比较与计数
+```go
+fmt.Println(strings.Count("cheese", "e")) // 3 统计字符串出现的次数
+// compare(n1,n2) n1>n2返回1，n1=n2返回0，n1<n2返回-1
+fmt.Println(strings.Compare("a", "b")) // -1
+fmt.Println(strings.EqualFold("HellO", "hEllO")) // true - 忽略大小写比较
+```
+
+修剪操作字符
+```go
+// 去除首位空格
+fmt.Println(strings.TrimSpace("  hello ok  ")) // hello ok
+fmt.Println(strings.Trim("!!!hello!ok!!", "!")) // hello!ok 去除指定的字符串
+fmt.Println(strings.TrimLeft("!!!hello", "!")) // 去除左边的字符串
+fmt.Println(strings.TrimRight("hello!!!", "!")) // 去除右边的字符串
+fmt.Println(strings.TrimPrefix("hello", "he")) // 去除匹配到的前缀字符
+fmt.Println(strings.TrimSuffix("hello", "ol")) // 去除匹配到的后缀字符
+```
+
+高效构建字符串
+```go
+var builderStr strings.Builder
+builderStr.WriteString("hello")
+builderStr.WriteString(" ")
+builderStr.WriteString("world")
+fmt.Println(builderStr.String()) // hello world
+```
+
+##### 字符串中读取内容
+函数 strings.NewReader(str) 用于生成一个 Reader 并读取字符串中的内容，然后返回指向该 Reader 的指针，从其它类型读取内容的函数还有：
+- `Read()` 从 `[]byte `中读取内容。
+- `ReadByte()` 和 `ReadRune()` 从字符串中读取下一个 byte 或者 rune。
+
+`strings.NewReader` 创建一个从字符串读取数据的 Reader 对象，它实现了 `io.Reader`、`io.ReaderAt`、`io.ByteReader`、`io.RuneReader`、`io.Seeker`、`io.WriterTo` 等接口。
+```go
+// 读取字节 (Read)
+strs := "hello, world!"
+var reader *strings.Reader = strings.NewReader(strs) // 返回字符串 Reader对象，读取字符串信息
+fmt.Printf("Reader 长度：%d\n", reader.Len())   // Reader 长度：13 
+```
+
+###### 1.读取字节 (Read)
+```go
+strs := "hello, world!"
+var reader *strings.Reader = strings.NewReader(strs) // 返回字符串 Reader对象，读取字符串信息
+fmt.Printf("Reader 长度：%d\n", reader.Len())           // Reader 长度：13
+
+// 创建缓冲区
+// make([]byte, 5) 是 Go 语言中用于创建一个字节切片（slice of bytes）的语法，
+// 它会分配一个底层数组，并返回一个包含 5 个元素（都初始化为零值）的切片，
+// 其长度（len）和容量（cap）都是 5。这常用于处理二进制数据、网络请求或文件操作，是 Go 语言中创建切片的标准方式
+buf := make([]byte, 5)
+
+// 通过读取前5个字节内容，
+n, err := reader.Read(buf) // 将reader字符串去读到buf缓冲区中，n表示读取字节的个数；即读取了5字节即hello
+if err != nil {            // !=nil err存在错误，不为空值
+    fmt.Println("读取错误", err)
+    return
+}
+fmt.Printf("读取了 %d个字节 %s\n", n, buf)        // 读取了 5个字节 hello
+fmt.Printf("Reader 剩余长度%d\n", reader.Len()) // Reader 剩余长度8
+```
+
+###### 2.读取到缓冲区 (ReadAt)
+```go
+str2 := "hello, world!"
+reader2 := strings.NewReader(str2)
+
+// 创建缓冲区
+buf2 := make([]byte, 5)
+// 从指定位置开始读取
+n2, err := reader2.ReadAt(buf2, 7) // 从索引7开始读取
+if err != nil {
+    fmt.Println("读取错误", err)
+    return
+}
+fmt.Printf("读取到字节共%d 读取内容%s\n", n2, buf2) // 读取到字节共5 读取内容world
+```
+
+###### 3.读取单个字节 (ReadByte)
+```go
+str3 := "hello, world!"
+reader3 := strings.NewReader(str3)
+
+// 循环变量读取单个字节
+for i := 0; i < 5; i++ { // 循环5次（因为"Hello"有5个字符）
+    b, err := reader3.ReadByte() // 读取一个字节
+    /**
+    EOF = End Of File（文件结束标志）
+    io.EOF 是一个预定义的错误变量，表示数据流已读取完毕
+    var EOF = errors.New("EOF")
+    当 Read() 或 ReadByte() 等方法尝试读取超出可用数据时，表示"没有更多数据可读了"
+    因为只循环了5次，而"Hello"正好有5个字节。如果尝试读取第6次，就会得到 EOF 错误
+    */
+    if err == io.EOF {           // 检查是否到达结尾
+        break
+    }
+    fmt.Printf("字节 %d: %c\n", i, b)
+}
+```
+
+###### 4. 读取单个字符 (ReadRune)
+```go
+str4 := "Hello 世界！"
+reader4 := strings.NewReader(str4)
+for {
+    ch, size, err := reader4.ReadRune() // 返回
+    if err == io.EOF {           // 检查是否到达结尾
+        break
+    }
+    fmt.Printf("字符：%c, 字节大小：%d\n", ch, size)
+}
+```
+
+###### 5.定位读取
+从开头(0)偏移7个字节,移动后指针指向字符 '7' 之前。从第八个索引位置开始
+```go
+Reader.Seek(offset, whence)
+```
+offset：偏移量，相对于`whence`指定的起始位置。
+whence：
+- 0:表示从头开始，比如Seek(7, 0)，字符串为"Hello, World"，从字符串起始位开始，向右偏移7个字节，即第8个位置”W“开始
+- 1:表示当前位置，比如字符串为"Hello, World"，通过b1, _ := reader.ReadByte(),表示读取一个字节b1=0即H。
+     再通过b2, _ := reader.ReadByte()，再次读取一个字节b2=1即e，此时已经读取了前2个字节
+     当reader.Seek(2, 1) 1表示当前位置，当前位置为2，即从位置2移动到4，即第5个位置。
+- 2:表示从尾部开始，比如Seek(-5, 2)，字符串为"Hello, World"，从字符串起始位开始，向左偏移5个字节，索引6即第7个位置” “开始。
+```go
+str5 := "Hello, World"
+reader5 := strings.NewReader(str5)
+
+// 跳到索引位置7开始
+reader5.Seek(7, 0)
+
+buf5 := make([]byte, 5) // 创建5个字节大小的缓冲区切片中
+reader5.Read(buf5) // 将reader字符串对象内容，读取到缓冲区中，大小为缓冲区5个字节
+fmt.Printf("从位置7开始读取：%s\n", buf5) // 从位置7开始读取：World
+```
+
+###### 6.写入到 Writer (WriteTo)
+```go
+str := "hello world"
+reader6 := strings.NewReader(str)
+
+// 创建一个buffer
+var buff strings.Builder
+// 将reader字符串内容写入到buffer中
+n6, err := reader6.WriteTo(&buff)
+if err != nil {
+    fmt.Println("写入错误:", err)
+return
+}
+fmt.Printf("写入了 %d个字节\n", n6) // 写入了 11个字节
+fmt.Printf("buffer内容 %s\n", buff.String()) // buffer内容 hello world
+```
+
+
+### 控制结构
+if
+switch 两种写法对比
+```go
+// 写法 1：带条件表达式
+switch r {
+case 'a':
+    fmt.Println("是字符 a")
+case 'b':
+    fmt.Println("是字符 b")
+default:
+    fmt.Println("其他字符")
+}
+// 执行逻辑：将 r 的值与每个 case 的值进行相等比较
+
+// 写法 2：不带条件表达式
+
+switch {
+case r == 'a':
+    fmt.Println("是字符 a")
+case r == 'b':
+    fmt.Println("是字符 b")
+default:
+    fmt.Println("其他字符")
+}
+```
+
+for
+while
