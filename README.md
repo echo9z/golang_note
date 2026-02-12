@@ -1321,7 +1321,7 @@ eg：
 %p	十六进制表示的一个地址值
 %s	输出字符串或字节数组
 %T	输出值的类型，注意int32和int是两种不同的类型，编译器不会自动转换，需要类型转换。
-%v	值的默认格式表示
+%v	表示以默认格式（值）输出变量。对于基本类型如整数、浮点数等，它会直接输出其值；对于结构体，它会输出各个字段的值。
 %+v	类似%v，但输出结构体时会添加字段名
 %#v	值的Go语法表示
 %t	单词true或false
@@ -2303,6 +2303,7 @@ func splitEg() {
 ##### strings 和 strconv 包
 作为一种基本数据结构，每种语言都有一些对于字符串的预定义处理函数。Go 中使用 `strings` 包来完成对字符串的主要操作。
 
+###### strings
 判断字符串
 ```go
 // 判断字符串s 是否以 prefix开头
@@ -2434,6 +2435,460 @@ builderStr.WriteString("world")
 fmt.Println(builderStr.String()) // hello world
 ```
 
+###### strcov
+与字符串相关的类型转换都是通过 `strconv` 包实现的。
+###### 基础整数转换
+对从字符串类型转换为数字类型，Go 提供了以下函数：
+```go
+strconv.Atoi(s string) (i int, err error) // 将字符串转换为 int 型。
+```
+
+```go
+// Atoi:字符串转int（常用）
+var str string = "123"
+// Atoi 等同于 ParseInt(s, 10, 0)，转换为 int 类型。
+num, err := strconv.Atoi(str)
+if err != nil {
+    fmt.Println("转换失败", err)
+} else {
+    // %T输出值的类型，注意int32和int是两种不同的类型
+    fmt.Printf("Atoi: %s -> %d（类型：%T）\n", str, num, num) // Atoi: 123 -> 123（类型：int）
+}
+```
+
+针对从数字类型转换到字符串，Go 提供了以下函数：
+```go
+strconv.Itoa(i int) string
+```
+
+```go
+// Itoa: int转字符串
+var intVal int= 4785
+strVal := strconv.Itoa(intVal)
+fmt.Printf("Itoa：%d -> %s (类型：%T)\n", intVal, strVal, strVal) // Itoa：4785 -> 4785 (类型：string)
+```
+
+ParseInt：将字符串转int，可指定进制和位数
+```go
+strconv.ParseInt(s string, base int, bitSize int) (i int64, err error)
+│
+├── s: 要转换的字符串
+│   └── "123", "-456", "0xFF", "0755"
+│
+├── base: 进制（2-36，0 表示自动推断）
+│   ├── 0  → 自动推断
+│   ├── 10 → 十进制
+│   ├── 16 → 十六进制
+│   └── 2  → 二进制
+│
+└── bitSize: 位大小（0, 8, 16, 32, 64）
+    └── 返回类型始终是 int64，但会检查范围
+```
+- s：转换的字符串，任意数字字符串
+- base: 进制（2-36），0表示自动推断；由字符串前缀（如果有符号则在符号之后）决定："0b" 为 2，"0" 或 "0o" 为 8，"0x" 为 16，否则为 10。
+- bitSize: 位数 0、8、16、32 和 64 分别对应 int、int8、int16、int32 和 int64。如果 bitSize 小于 0 或大于 64，则会返回错误。
+自动推断类型（0x开头16进制，0开头为8进制）
+
+```go
+num64, _ := strconv.ParseInt("123", 0, 64)
+fmt.Println("ParseInt(自动推断)：", num64) // ParseInt(自动推断)： 123
+
+num0x, _ := strconv.ParseInt("0xFF", 0, 64) // 十六进制字符串0xff 转换为int64输出255
+fmt.Println("ParseInt(十六进制)：", num0x)       // ParseInt(十六进制)： 255
+
+num8, _ := strconv.ParseInt("0777", 0, 64) // 八进制字符串0777 转换为int64输出511
+fmt.Println("ParseInt(八进制)：", num8)        // ParseInt(八进制)： 511
+```
+
+指定进制：base 设置指定进制进行转换
+```go
+num2, _ := strconv.ParseInt("1010", 2, 64)
+fmt.Println("二进制(1010)：", num2) // 二进制(自动推断)： 10
+
+num16, _ := strconv.ParseInt("ff", 16, 64)
+fmt.Println("十六进制(ff)：", num16) // 十六进制(自动推断)： 255
+
+num88, _ := strconv.ParseInt("777", 8, 64)
+fmt.Println("八进制(777)：", num88) // 八进制(777)： 511
+```
+
+ParseInt对比 Atoi、ParseUint
+
+| 函数                            | 返回类型     | 符号  | 进制控制       |
+| ----------------------------- | -------- | --- | ---------- |
+| `Atoi(s)`                     | `int`    | 有符号 | 固定 10 进制   |
+| `ParseInt(s, base, bitSize)`  | `int64`  | 有符号 | 可选 2-36 进制 |
+| `ParseUint(s, base, bitSize)` | `uint64` | 无符号 | 可选 2-36 进制 |
+```go
+// Atoi - 简单场景
+num, _ := strconv.Atoi("123")  // 返回 int 类型
+
+// ParseInt - 灵活场景
+num, _ := strconv.ParseInt("123", 10, 64)  // 返回 int64，可指定进制和位大小
+
+// ParseUint - 无符号整数
+num, _ := strconv.ParseUint("123", 10, 64)  // 返回 uint64
+```
+
+处理负数字符串
+```go
+fuNum, _ := strconv.ParseInt("-123", 10, 64)
+fmt.Printf("负数：(类型：%T) %d\n", fuNum, fuNum) // 负数：(类型：int64) -123
+```
+
+FormatInt：将 Int64位转字符串的数字转换为字符串
+```go
+strconv.FormatInt(i int64, base int) string
+│
+├── i: 要转换的整数（int64类型）
+│   └── 可以是负数、零、正数
+│
+├── base: 目标进制（2-36）
+│   ├── 2  → 二进制
+│   ├── 8  → 八进制
+│   ├── 10 → 十进制
+│   ├── 16 → 十六进制（小写）
+│   └── 36 → 最大进制（0-9, a-z）
+│
+└── 返回: 字符串
+    └── 负数会自动添加负号
+```
+
+```go
+
+fmt.Println("formatInt(十进制)：", strconv.FormatInt(123, 10)) // formatInt(十进制)： 123
+fmt.Println("formatInt(16进制)：", strconv.FormatInt(255, 16)) // formatInt(16进制)： ff
+fmt.Println("formatInt(八进制)：", strconv.FormatInt(511, 8)) // formatInt(八进制)： 777
+fmt.Println("formatInt(2进制)：", strconv.FormatInt(10, 2)) // formatInt(2进制)： 1010
+```
+
+负数转字符串时，处理符号会自动添加
+```go
+intF := strconv.FormatInt(-123, 10)
+fmt.Printf("负数：(类型：%T) %s\n", intF, intF) // 负数：(类型：string) -123
+intF2 := strconv.FormatInt(-255, 10)
+fmt.Printf("负数：(类型：%T) %s\n", intF2, intF2) // 负数：(类型：string) -255
+
+// 零值
+zero := strconv.FormatInt(0, 10)
+fmt.Printf("零值(类型：%T) %s\n", zero, zero) // 零值(类型：string) 0
+```
+
+向目标dst切片，追加base进制value内容，到dst切片中
+```go
+strconv.AppendInt(dst, value, base)
+│
+├── dst: 目标字节切片（会被追加）
+│   └── 可以是空切片 []byte{}
+│
+├── value: 要追加的整数（int64）
+│
+└── base: 进制（2-36）
+    ├── 10 → 十进制
+    ├── 16 → 十六进制
+    ├── 8  → 八进制
+    └── 2  → 二进制
+```
+
+```go
+// 初始状态：buf = ['n', 'u', 'm', 'b', 'e', 'r', ':'] 即 "number:"
+// 追加后：buf = ['n', 'u', 'm', 'b', 'e', 'r', ':', '1', '2', '3'] 即 "number:123"
+buf := []byte("number:") //
+buf = strconv.AppendInt(buf, 123, 10)  // 将整数123以十进制追加到buf字节切片中
+fmt.Println("字节切片", buf)               // 字节切片 [110 117 109 98 101 114 58 49 50 51]
+fmt.Println("AppendInt：", string(buf)) // AppendInt： number:123
+```
+
+```go
+// 不同进制进行追加
+buf1 := []byte("Hex:")
+buf1 = strconv.AppendInt(buf1, 255, 16) // Hex:ff
+buf2 := []byte("Bin:")
+buf2 = strconv.AppendInt(buf2, 10, 2) // Bin:101
+buf3 := []byte("Oct:")
+buf3 = strconv.AppendInt(buf3, 511, 8) // Oct:777
+buf4 := []byte("Dec:")
+buf4 = strconv.AppendInt(buf4, 255, 10) // Dec:255
+fmt.Println(string(buf1), string(buf2), string(buf3), string(buf4))
+
+// 负数
+buf5 := []byte("负数:")
+buf5 = strconv.AppendInt(buf5, -12, 10) // 负数:-12
+fmt.Println("buf5", string(buf5))
+```
+
+AppendInt vs FormatInt vs Itoa对比
+
+|函数|用途|返回类型|场景|
+|---|---|---|---|
+|`AppendInt(dst, value, base)`|追加到现有切片|`[]byte`|需要拼接多个值|
+|`FormatInt(value, base)`|转换为新字符串|`string`|单次转换|
+|`Itoa(value)`|转换为十进制字符串|`string`|简单十进制转换|
+对比示例
+```go
+// 方式1：AppendInt - 高效（避免多次内存分配）
+buf := []byte("Values:")
+buf = strconv.AppendInt(buf, 123, 10)
+buf = strconv.AppendInt(buf, 456, 10)
+buf = strconv.AppendInt(buf, 789, 10)
+fmt.Println(string(buf))  // Values:123456789
+
+// 方式2：FormatInt - 简单但多次拼接
+result := "Values:" + strconv.FormatInt(123, 10) + 
+           strconv.FormatInt(456, 10) + 
+           strconv.FormatInt(789, 10)
+fmt.Println(result)  // Values:123456789
+
+// 方式3：strings.Join - 可读性好
+parts := []string{
+    "Values:",
+    strconv.FormatInt(123, 10),
+    strconv.FormatInt(456, 10),
+    strconv.FormatInt(789, 10),
+}
+result = strings.Join(parts, "")
+fmt.Println(result)  // Values:123456789
+```
+
+AppendUint（无符号整数）
+```go
+buf := []byte("Count:")
+buf = strconv.AppendUint(buf, 12345, 10)
+fmt.Println(string(buf))  // Count:12345
+```
+
+AppendFloat（浮点数）
+```go
+buf := []byte("Price:")
+buf = strconv.AppendFloat(buf, 19.99, 'f', 2, 64)
+fmt.Println(string(buf))  // Price:19.99
+```
+
+AppendBool（布尔值）
+```go
+buf := []byte("Active:")
+buf = strconv.AppendBool(buf, true)
+fmt.Println(string(buf))  // Active:true
+```
+
+AppendQuote（带引号的字符串）
+```go
+buf := []byte("Message:")
+buf = strconv.AppendQuote(buf, "Hello")
+fmt.Println(string(buf))  // Message:"Hello"
+```
+
+###### 无符号整数转换
+ParseUint：将字符串解析无符号整数
+FormatUint：无符号整数转字符串
+```go
+uvar, err := strconv.ParseUint("123", 10, 64)
+if err != nil {
+    fmt.Println("转换失败", err)
+} else {
+    fmt.Printf("ParseUint: %d(类型%T)\n", uvar, uvar) // ParseUint: 123(类型uint64)
+}
+
+// 有符号转换解析失败
+_, err = strconv.ParseUint("-123", 10, 64)
+if err != nil {
+    fmt.Println("ParseUint转换错误", err)
+}
+
+// FormatUint：无符号整数转字符串
+strFUint := strconv.FormatUint(100, 10)
+fmt.Printf("FormatUint：%s %T\n", strFUint, strFUint) // FormatUint：100 string
+
+// 大数处理
+var bigN uint64 = 18446744073709551615
+strBigN := strconv.FormatUint(bigN, 10)
+fmt.Printf("FormatUint：%s %T\n", strBigN, strBigN) // FormatUint：18446744073709551615 string
+
+// 将上面长字符串数解析为正常 大数
+parsed, _ := strconv.ParseUint(strBigN, 10, 64) // FormatUint：18446744073709551615 string
+fmt.Printf("ParseUint解析结果：%d %T\n", parsed, parsed) // ParseUint解析结果：18446744073709551615 uint64
+```
+
+###### 浮点数转换
+ParseFloat：字符串转浮点型
+FormatFloat：浮点数转字符串
+AppendFloat 向字节切片追加浮点内容
+```go
+// ParseFloat：字符串转浮点型
+// 32 位用于 float32，或 64 位用于 float64。当 bitSize=32 时，结果仍然是 float64 类型，但它可以在不改变其值的情况下转换为 float32。
+
+// 1.基本浮点数
+f64, err := strconv.ParseFloat("3.14159", 64)
+if err != nil {
+    fmt.Println("转换失败：", err)
+} else {
+    fmt.Printf("转换浮点型：%f(类型%T)\n", f64, f64) // 转换浮点型：3.141590(类型float64)
+}
+
+// 2.科学计数法
+f64e, _ := strconv.ParseFloat("1.23e4", 64) // 1.23 * 10^4
+fmt.Printf("科学计数法：%f(类型%T)\n", f64e, f64e)  // 科学计数法：12300.000000(类型float64)
+
+// 负数
+f64f, _ := strconv.ParseFloat("-3.14", 64)
+fmt.Printf("负数：%f(类型%T)\n", f64f, f64f) // 负数：-3.140000(类型float64)
+
+// NaN特殊值
+FNaN, _ := strconv.ParseFloat("NaN", 64)
+fmt.Printf("特殊值：%v(类型%T)\n", FNaN, FNaN) // 特殊值：NaN(类型float64)
+
+// 正无穷 和 负无穷
+Zinf, _ := strconv.ParseFloat("Inf", 64)
+fmt.Printf("特殊值：%v(类型%T)\n", Zinf, Zinf) // 特殊值：+Inf(类型float64)
+Finf, _ := strconv.ParseFloat("-Inf", 64)
+fmt.Printf("特殊值：%v(类型%T)\n", Finf, Finf) // 特殊值：-Inf(类型float64)
+
+// FormatFloat：浮点数转字符串
+// FormatFloat(f float64, fmt byte, prec, bitSize int) string
+// 将浮点数 f 转换为字符串，根据格式 fmt 和精度 prec。 bitSize 位（32 位用于 float32，64 位用于 float64
+// 格式 fmt
+// 'b' (-ddddp±ddd，二进制指数), 二进制
+// 'e' (-d.dddde±dd，十进制指数), 科学技术法
+// 'E' (-d.ddddE±dd，十进制指数), 科学技术法
+// 'f' (-ddd.dddd，没有指数), 普通小数格式
+// 'g' (大指数用e，否则用f), 自动选择
+// 'x' (-0xd.ddddp±ddd, 一个十六进制分数和二进制指数), 或
+// 'X' (-0Xd.ddddP±ddd, 一个十六进制分数和二进制指数).
+// 精度 prec 控制由 'e', 'E', 'f', 'g', 'G', 'x', 和 'X' 格式打印的数字位数（不包括指数）。对于 'e', 'E', 'f', 'x', 和 'X'，它是小数点后的位数。
+// 对于 'g' 和 'G'，它是最大有效数字位数（尾部零将被移除）。特殊的精度 -1 使用最少数位的数字，使得 ParseFloat 将精确返回 f。指数以十进制整数形式书写；对于所有除 'b' 以外的格式，它至少是两位数
+
+const PI float64 = 3.141592653589793
+sPi := strconv.FormatFloat(PI, 'f', 2, 64)  // 保留小数点后2位精度
+sPi2 := strconv.FormatFloat(PI, 'f', 6, 64) // 保留小数点后2位精度
+fmt.Printf("普通格式f：%v（%T类型）\n", sPi, sPi)    // 普通格式：3.14（string类型）
+fmt.Printf("普通格式f：%v（%T类型）\n", sPi2, sPi2)  // 普通格式：3.141593（string类型）
+
+// 科学计数法
+kPi := strconv.FormatFloat(PI, 'e', 4, 64)
+kPiE := strconv.FormatFloat(PI, 'E', 4, 64)
+fmt.Printf("科学计数法e：%v（%T类型）\n", kPi, kPi)   // 科学计数法e：3.1416e+00（string类型）
+fmt.Printf("科学计数法E：%v（%T类型）\n", kPiE, kPiE) // 科学计数法E：3.1416E+00（string类型）
+
+// 大数
+// 当数字很大或很小时，自动用科学计数法（'e'）
+// 普通数字用小数格式（'f'）
+bigF := 123456789.123456789                    // 小数点后最多9位
+gBig := strconv.FormatFloat(bigF, 'g', -1, 64) // prec = -1：自动计算最小精度
+fmt.Printf("大数g：%v（%T类型）\n", gBig, gBig)       // 大数g：1.2345678912345679e+08（string类型）
+// prec = 6：保留 6 位有效数字
+gBig = strconv.FormatFloat(bigF, 'g', 6, 64) // "1.23457e+08"
+fmt.Printf("大数g：%v（%T类型）\n", gBig, gBig)
+// prec = 10：保留 10 位有效数字
+gBig = strconv.FormatFloat(bigF, 'g', 10, 64) // "123456789.1"
+fmt.Printf("大数g：%v（%T类型）\n", gBig, gBig)
+
+// AppendFloat 向字节切片追加浮点内容
+buf := []byte("pi: ")
+buf = strconv.AppendFloat(buf, 3.1415926, 'f', 2, 64)
+fmt.Printf("AppendFloat buf：%s \n", string(buf)) // AppendFloat buf：pi: 3.14 
+```
+
+###### 布尔值转换
+ParseBool：字符串转布尔值
+FormatBool：布尔值转字符串
+AppendBool：向目标字节切片追加bool
+```go
+// ParseBool：字符串转布尔值
+// ParseBool(str string) (bool, error)
+// 它接受 1、t、T、TRUE、true、True、0、f、F、FALSE、false、False字符串。任何其他值都会返回错误。
+boolArr := []string{
+    "1", "t", "T", "true", "True", "TRUE",
+    "0", "f", "F", "FALSE", "false", "False",
+    "yes", "no", // 最后两个无效
+}
+
+for _, str := range boolArr {
+    b, err := strconv.ParseBool(str)
+    if err != nil {
+        fmt.Printf("ParsBool 字符串布尔%q 错误: %v \n", str, err)
+    } else {
+        fmt.Printf("ParsBool %q(%T) ：%v(%T) \n", str, str, b, b)
+    }
+}
+
+// FormatBool：布尔值转字符串
+bool1 := strconv.FormatBool(true)
+bool2 := strconv.FormatBool(false)
+fmt.Printf("FormatBool：%v 类型(%T)\n", bool1, bool1) // FormatBool：true 类型(string)
+fmt.Printf("FormatBool：%v 类型(%T)\n", bool2, bool2) // FormatBool：false 类型(string)
+
+// AppendBool：向目标字节切片追加bool
+buf := []byte("Status: ")
+buf = strconv.AppendBool(buf, false)
+fmt.Printf("AppendBool: %s\n", string(buf))
+```
+
+###### 引号处理
+Quote：添加双引号并转义特殊字符
+QuoteToASCII：非ASCII字符转Unicode转义序列
+QuoteToGraphic：转义非图形字符
+QuoteRune字符加引号
+```go
+// 1.Quote：添加双引号并转义特殊字符
+str := "Hello\tWorld\ngo\"语言\""
+fmt.Printf("原始字符串 %s\n", str)
+// 原始字符串 Hello  World
+// go"语言"
+
+fmt.Println("Quote", strconv.Quote(str)) // 输出：Quote "Hello\tWorld\ngo\"语言\""
+
+// 2.QuoteToASCII：非ASCII字符转Unicode转义序列
+str2 := "Hello 世界"
+fmt.Println("QuoteToASCII：", strconv.QuoteToASCII(str2)) // QuoteToASCII： "Hello \u4e16\u754c"
+
+// 3.QuoteToGraphic：转义非图形字符
+str3 := "hello 你好\t\n"
+// 会保留中文，对控制字符串转义 控制字符比如\n \t \r \b \x00
+fmt.Println("QuoteToGraphic：", strconv.QuoteToGraphic(str3)) // QuoteToGraphic： "hello 你好\t\n"
+// 对于emoji图标是图形字符，完全保留
+str4 := "hello 🌏"
+fmt.Println("emoji：", strconv.QuoteToGraphic(str4)) // emoji： "hello 🌏"
+
+// 4.QuoteRune字符加引号
+fmt.Println("QuoteRune:", strconv.QuoteRune('A'))  // QuoteRune: 'A'
+fmt.Println("QuoteRune:", strconv.QuoteRune('\n')) // QuoteRune: '\n'
+fmt.Println("QuoteRune:", strconv.QuoteRune('世'))  // QuoteRune: '世'
+
+// 5.QuoteRuneToASCII：字符转ASCII表示 只允许传入rune类型
+fmt.Println("QuoteRuneToASCII：", strconv.QuoteRuneToASCII('世')) // QuoteRuneToASCII： '\u4e16'
+```
+
+反引号
+Unquote：去除引号（反转义）
+```go
+// Unquote：去除引号（反转义）
+quoted := `"Hello\tWorld\n Go"`
+// %q   该值对应的单引号括起来的go语法字符字面值，必要时会采用安全的转义表示
+// fmt.Printf("原始字符串：%q", quoted) // 原始字符串："\"Hello\\tWorld\\n Go\""
+
+unquoted, err := strconv.Unquote(quoted)
+if err != nil {
+    fmt.Println("Unquote错误:", err)
+} else {
+    fmt.Printf("原字符串 %q ->去除后 %q\n", quoted, unquoted) // 原字符串 "\"Hello\\tWorld\\n Go\""    ->去除后 "Hello\tWorld\n Go"
+}
+// 无法取消引用不带引号的字符串
+s1, err := strconv.Unquote("法取消引用不带引号的字符串")
+// 会报错误，报无法取消带引号字符串
+fmt.Println(s1, err) //  invalid syntax
+
+s2, err := strconv.Unquote("\"字符串必须使用双引号或者单引号或反引号\"")
+fmt.Println(s2, err) // 字符串必须使用双引号或者单引号或反引号 <nil>
+
+s3, err := strconv.Unquote("`or backquoted.`")
+fmt.Printf("%q, %v\n", s3, err) // "or backquoted.", <nil>
+
+// 单个字符使用在单引号中
+s4, err := strconv.Unquote("'\u263a'") // 使用Unicode值
+fmt.Println("单个字符使用在单引号中:", s4, err) // 单个字符使用在单引号中: ☺ <nil>
+```
+
+
 ##### 字符串中读取内容
 函数 strings.NewReader(str) 用于生成一个 Reader 并读取字符串中的内容，然后返回指向该 Reader 的指针，从其它类型读取内容的函数还有：
 - `Read()` 从 `[]byte `中读取内容。
@@ -2562,8 +3017,435 @@ fmt.Printf("buffer内容 %s\n", buff.String()) // buffer内容 hello world
 ```
 
 
+#### 时间和日期
+`time`  包提供了一个数据类型 `time.Time`（作为值使用）以及显示和测量时间和日期的功能函数。
+当前时间可以使用 `time.Now()` 获取，或者使用 `t.Day()`、`t.Minute()` 等等来获取时间的一部分；
+```go
+// 1.获取当前时间
+now := time.Now() // 返回time.Time对象
+fmt.Println("当前时间", now) // 当前时间 2026-02-09 13:35:43.6066288 +0800 CST m=+0.000000001
+```
+
+##### 获取年月日，时分秒
+```go
+// 2.time.Time对象获取年月日，时分秒
+year := now.Year()
+month := now.Month() // 获取月。类型time.Month
+day := now.Day()
+hour := now.Hour()
+minute := now.Minute()
+second := now.Second()
+// nanosecond := now.Nanosecond() // ns（nanosecond）：纳秒，时间单位。一秒的十亿分之一，等于10的负9次方秒（1 ns = 10-9 s）。
+weekday := now.Weekday() // 获取星期
+
+fmt.Printf("%d年%d月%d日 %d时%d分%d秒 星期：%s\n",
+                year, month, day, hour, minute, second, weekday) // 2026年2月9日 15时53分50秒 星期：Monday
+
+```
+
+##### 创建指定时间
+```go
+// 3.创建指定时间
+// time.Data(year, month, day,hour,min,sec,nsec,loc)
+// year:int类型 年份
+// month：指定类型time.Month类型，比如time.January、time.December 
+// day:int类型 日（1-31）
+// hour:int类型 小时（0-23）
+// min:int分钟（0-59）
+// sec:int秒（0-59）
+// nsec:纳秒（0-999999999）
+// loc:时区 time.Local、time.UTC
+specificTime := time.Date(2024, time.December, 14, 15, 10,0,0,time.Local)
+fmt.Println("创建自定义时间：",specificTime) // 创建自定义时间： 2024-12-14 15:10:00 +0800 CST
+
+// 4.通过时间戳创建
+timestamp := int64(1696735800)
+tStamp := time.Unix(timestamp, 0) // 第二个参数为纳秒
+fmt.Println("时间戳创建：", tStamp) // 时间戳创建： 2023-10-08 11:30:00 +0800 CST
+```
+
+##### 时间格式化
+```go
+// 5.时间格式化
+// 格式化为字符串（必须使用Go的特定参考时间）
+// 标准 ISO 8601 格式
+fmt.Println(now.Format("2006-01-02T15:04:05Z07:00")) // 2026-02-09T17:29:33+08:00
+fmt.Println(now.Format("2006-01-02 15:04:05")) // 2026-02-09 17:30:18
+// 注意：如果写出这种格式 时间必须是2006年01月02日 15:04:05这个时间，Go 的时间格式化必须使用固定的参考时间：Mon Jan 2 15:04:05 MST 2006
+
+// 简短的时间
+fmt.Println(now.Format("2006/01/02")) // 他会参考这个传入的格式，输入出当前时间2026/02/09
+// 只显示时间  这里传入的时间必须是 15:04:05
+fmt.Println(now.Format("15:04:05")) // 输入当前的时间17:41:02
+
+// 带星期的
+fmt.Println(now.Format("2006 01 02 Monday")) // 2026 02 09 Monday
+
+// 其他语言的常见方式（在Go中不支持！）
+// fmt.Println(t.Format("YYYY-MM-DD"))  ❌ 错误！
+// fmt.Println(t.Format("hh:mm:ss"))    ❌ 错误！
+
+// go中预定义常量
+// 标准库已提供常用格式常量：
+//  time.RFC3339      // "2006-01-02T15:04:05Z07:00"
+//  time.RFC1123      // "Mon, 02 Jan 2006 15:04:05 MST"
+//  time.RFC822       // "02 Jan 06 15:04 MST"
+//  time.Kitchen      // "3:04PM"
+//  time.Stamp        // "Jan _2 15:04:05"
+//  time.StampMilli   // "Jan _2 15:04:05.000"
+//  time.ANSIC        // "Mon Jan _2 15:04:05 2006"
+t2 := time.Date(2025, 12, 25, 14, 15, 45, 0, time.UTC)
+fmt.Println("RFC3339:", t2.Format(time.RFC3339))// RFC3339: 2025-12-25T14:15:45Z
+fmt.Println("ANSIC:", t2.Format(time.ANSIC))// ANSIC: Thu Dec 25 14:15:45 2025
+```
+注意：如果写出这种格式 时间必须是2006年01月02日 15:04:05这个时间，Go 的时间格式化必须使用固定的参考时间：Mon Jan 2 15:04:05 MST 2006。这是 Go 语言作者 Rob Pike 的生日（或者是容易记忆的时间点）。
+
+##### 解析时间字符串
+```go
+// 6.解析时间字符串
+layout := "2006-01-02 15:04:05" // 模板
+timeStr := "2025-12-12 15:10:59"
+// 使用time.parse
+// 第一个参数 Layout 日期时间必须是：Mon Jan 2 15:04:05 MST 2006 这个世界点的任一格式模板
+// 例如：
+// 第二个参数必须使用第一个参数提供的格式字符串（布局）进行解析。
+// 返回为time类型
+parsedTime, err := time.Parse(layout, timeStr)
+if err != nil {
+	fmt.Println("解析错误：",err)
+} else {
+	fmt.Println("解析结果：", parsedTime)
+}
+
+// 带时区的格式
+lot := "Jan 2, 2006 at 3:04pm (MST)"
+t3, _ := time.Parse(lot, "Feb 3, 2025 at 7:54pm (UTC)") // 解析的时间结构 要与lot结构一致
+fmt.Println("解析结果t3：", t3) //  解析结果t3： 2025-02-03 19:54:00 +0000 UTC
+```
+
+**时间常量**，表示 1 秒的 `Duration` 值。类似的常量还有：
+
+| 常量                 | 值               | 说明  |
+| ------------------ | --------------- | --- |
+| `time.Nanosecond`  | 1ns             | 1纳秒 |
+| `time.Microsecond` | 1000ns          | 1微秒 |
+| `time.Millisecond` | 1000000ns       | 1毫秒 |
+| `time.Second`      | 1000000000ns    | 1秒  |
+| `time.Minute`      | 60000000000ns   | 1分钟 |
+| `time.Hour`        | 3600000000000ns | 1小时 |
+##### 时间计算
+```go
+now2 := time.Now()
+// 增加时间
+fmt.Println(time.Hour) // 一小时 1h0m0s
+oneHourLater := now2.Add(time.Hour)
+fmt.Println("一小时后：", oneHourLater) //一小时后： 2026-02-10 23:16:07.0540868 +0800 CST m=+3600.018266301
+
+// 增加指定时常
+twoDaysLater := now2.Add(time.Hour * 48)
+fmt.Println("两天后：", twoDaysLater) // 两天后： 2026-02-12 22:21:20.4059784 +0800 CST m=+172800.019016601
+
+// 增加指定的日期
+// AddDate(year,month,day)
+oneMonthLater := now2.AddDate(0, 1, 0) // 年, 月, 日
+fmt.Println("一个月后：", oneMonthLater)    // 一个月后： 2026-03-10 22:41:40.4558462 +0800 CST
+
+// 减少时间
+oneHourBefore := now.Add(-time.Hour)
+fmt.Println("减一小时", oneHourBefore) // 减一小时 2026-02-11 10:35:28.8194763 +0800 CST m=-3599.999461599
+```
+
+##### 时间差
+```go
+// 创建一个时间 2024/12/14 15：10：00
+start := time.Now()
+fmt.Println("开始时间：", start) // 开始时间： 2026-02-11 17:28:17.2852332 +0800 CST m=+0.019361901
+fmt.Println(time.Second)    // 1秒
+// Sleep(d time.Duration)
+// Duration 是 int64 的别名，表示两个时间点之间经过的纳秒数：
+fmt.Println(500 * time.Millisecond) // 500 * 1毫秒
+fmt.Println(500 * time.Millisecond) // 500 * 1毫秒
+fmt.Println(time.Minute)            // 1分钟
+
+time.Sleep(2 * time.Second) // 暂停当前 goroutine 执行指定的时长，然后恢复执行。即time.Sleep睡2秒后，执行后面代码
+// time.Since(t Time) Duration：计算从时间 t 到现在经过的时长
+duration := time.Since(start)
+fmt.Println("耗时：", duration)           // 耗时： 2.0006042s
+fmt.Println("秒数：", duration.Seconds()) //  2.0006042
+fmt.Println("毫秒数：", duration.Milliseconds()) // 毫秒数： 2000
+// Duration 常用方法：
+// Seconds()	float64	转换为秒
+// Milliseconds()	float64	转换为毫秒
+// Microseconds()	int64	转换为微秒
+// Nanoseconds()	int64	转换为纳秒
+// Minutes()	float64	转换为分钟
+// Hours()	float64	转换为小时
+// String()	string	格式化字符串
+
+// 	time.Until()
+// 与 Since 相反，计算从现在到未来某个时间点的时长：
+future := time.Now().Add(2 * time.Hour)
+durationF := time.Until(future)
+fmt.Println("距离未来时间还有：", durationF) // 距离未来时间还有： 2h0m0s
+
+// 两个时间的差值
+t11 := time.Date(2023, 10, 1, 0, 0, 0, 0, time.UTC)
+t21 := time.Date(2023, 10, 8, 0, 0, 0, 0, time.UTC)
+diffTime := t21.Sub(t11)
+fmt.Println("时间差", diffTime) // 时间差 168h0m0s
+fmt.Println("天数差", diffTime.Hours()/24) // 天数差 7
+```
+
+测量代码执行时间
+```go
+start := time.Now()
+
+// 模拟代码的耗时操作
+time.Sleep(1500 * time.Millisecond)
+
+duration := time.Since(start)
+
+fmt.Printf("耗时：%v\n", duration)                    // 耗时：1.500123s
+fmt.Printf("秒数：%.2f\n", duration.Seconds())        // 秒数：1.50
+fmt.Printf("毫秒数：%.0f\n", duration.Milliseconds()) // 毫秒数：1500
+```
+
+##### 定时器
+`time.NewTimer(d Duration)` 创建一个定时器，返回 `*time.Timer` 类型：
+- 2 秒后定时器会"到期"
+- 到期后会向 `timer.C` 通道发送当前时间
+```go
+// 定时器 - 只执行一次
+// time.NewTimer(d Duration) 创建一个定时器，2秒后定时器会"到期"；到期后会向 timer.C 通道发送当前时间
+timer := time.NewTimer(2 * time.Second)
+// timer.C 是一个 <-chan time.Time 类型的通道。
+<-timer.C // <-timer.C 表示从通道接收数据；在定时器到期前，这行代码会阻塞，程序停在这里等待
+// 2 秒后，定时器向 timer.C 发送时间，阻塞解除，继续执行
+fmt.Println("定时器触发了")
+```
+执行流程
+```go
+开始
+  │
+  ▼
+创建定时器（设置2秒）
+  │
+  ▼
+等待 <-timer.C  ◄───── 阻塞在这里
+  │                    等待2秒...
+  │
+  ▼ (2秒后通道收到数据)
+打印 "定时器触发了"
+  │
+  ▼
+结束
+```
+
+对比 `time.Sleep`
+```go
+// 方式1：使用 Sleep（无法取消）
+time.Sleep(2 * time.Second)
+fmt.Println("2秒到了")
+
+// 方式2：使用 Timer（可以取消）
+timer := time.NewTimer(2 * time.Second)
+<-timer.C
+fmt.Println("2秒到了")
+```
+
+**Timer 的优势：** 可以取消、重置
+```go
+timer := time.NewTimer(5 * time.Second)
+
+// 在另一个 goroutine 中取消
+go func() {
+    time.Sleep(1 * time.Second)
+    timer.Stop() // 取消定时器
+}()
+
+select {
+case <-timer.C:
+    fmt.Println("定时器触发")
+default:
+    fmt.Println("定时器已取消")
+}
+```
+
 ### 控制结构
-if
+Go 程序都是从 main () 函数开始执行，然后按顺序执行该函数体中的代码。但我们经常会需要只有在满足一些特定情况时才执行某些代码，也就是说在代码里进行条件判断。针对这种需求，Go 提供了下面这些条件结构和分支结构：
+- if-else 结构
+- switch 结构
+- select 结构，用于 channel 的选择
+使用迭代或循环结构来重复执行一次或多次某段代码（任务）：
+- for (range) 结构
+一些如 `break` 和 `continue` 这样的关键字可以用于中途改变循环的状态。
+
+#### if else
+`if else` 至多两个判断分支，语句格式如下
+
+```go
+if expression {
+ ... ...
+}
+```
+
+或者
+
+```go
+if expression {
+ ... ...
+}else {
+ ... ...
+}
+```
+`expression`必须是一个布尔表达式，即结果要么为真要么为假，必须是一个布尔值。
+
+也可以把表达式写的更复杂些，必要时为了提高可读性，应当使用括号来显式的表示谁应该优先计算。
+```go
+func main() {
+   a, b := 1, 2
+    if a<<1%100+3 > b*100/20+6 { // (a<<1%100)+3 > (b*100/20)+6
+      b++
+   } else {
+      a++
+   }
+}
+```
+
+`if`语句也可以包含一些简单的语句，例如：
+```go
+// if 的特殊语法：初始化语句 + 条件
+if 初始化语句; 条件 {
+    // 条件为 true 时执行
+}
+
+if v, err := strconv.Atoi(config["port"]); err != nil {
+    // 错误处理分支
+} 
+```
+
+优点：变量作用域限制
+```go
+// 推荐：v 和 err 只在 if 块内可见
+if v, err := strconv.Atoi("8080"); err != nil {
+    // 错误处理
+} else {
+    fmt.Println(v)  // 可以使用 v
+}
+// fmt.Println(v)  // 错误：v 在这里不可见
+
+// 不推荐：变量污染外部作用域
+v, err := strconv.Atoi("8080")
+if err != nil {
+    // 错误处理
+    fmt.Println("转换失败", err)
+    return err
+}
+fmt.Println(v)  // v 在整个函数内都可见
+```
+ err 变量是否包含一个真正的错误（if err != nil）的习惯用法。如果确实存在错误，则会打印相应的错误信息然后通过 return 提前结束函数的执行。还可以使用携带返回值的 return 形式，例如`return err`。
+
+```go
+value, err := pack1.Function1(param1)
+if err != nil {
+    fmt.Printf("An error occured in pack1.Function1 with parameter %v", param1)
+    return err
+}
+// 未发生错误，继续执行：
+```
+由于本例的函数调用者属于 main 函数，所以程序会直接停止运行。
+
+如果我们想要在错误发生的同时终止程序的运行，我们可以使用 os 包的 Exit 函数：
+```go
+if err != nil {
+    fmt.Printf("Program stopping with error %v", err)
+    os.Exit(1)
+}
+```
+（此处的退出代码 1 可以使用外部脚本获取到）
+
+#### switch
+`switch`语句也是一种多分支的判断语句，语句格式如下：
+```go
+switch expr {
+  case case1:
+    statement1
+  case case2:
+    statement2
+  default:
+    default statement
+}
+```
+
+一个简单的例子如下
+```go
+func main() {
+   str := "a"
+   switch str {
+   case "a":
+      str += "a"
+      str += "c"
+   case "b":
+      str += "bb"
+      str += "aaaa"
+   default: // 当所有case都不匹配后，就会执行default分支
+      str += "CCCC"
+   }
+   fmt.Println(str)
+}
+```
+
+还可以在表达式之前编写一些简单语句，例如声明新变量
+```go
+func main() {
+  switch num := f(); { // 等价于 switch num := f(); true {
+  case num >= 0 && num <= 1:
+    num++
+  case num > 1:
+    num--
+    fallthrough
+  case num < 0:
+    num += num
+  }
+}
+
+func f() int {
+  return 1
+}
+```
+`switch`语句也可以没有入口处的表达式。
+```go
+func main() {
+   num := 2
+   switch { // 等价于 switch true {
+   case num >= 0 && num <= 1:
+      num++
+   case num > 1:
+      num--
+   case num < 0:
+      num *= num
+   }
+   fmt.Println(num)
+}
+```
+
+通过`fallthrough`关键字来继续执行相邻的下一个分支。
+```go
+func main() {
+   num := 2
+   switch {
+   case num >= 0 && num <= 1:
+      num++
+   case num > 1:
+      num--
+      fallthrough // 执行完该分支后，会继续执行下一个分支
+   case num < 0:
+      num += num
+   }
+   fmt.Println(num)
+}
+```
+
 switch 两种写法对比
 ```go
 // 写法 1：带条件表达式
@@ -2578,7 +3460,6 @@ default:
 // 执行逻辑：将 r 的值与每个 case 的值进行相等比较
 
 // 写法 2：不带条件表达式
-
 switch {
 case r == 'a':
     fmt.Println("是字符 a")
@@ -2589,5 +3470,30 @@ default:
 }
 ```
 
-for
-while
+#### label
+标签语句，给一个代码块打上标签，可以是`goto`，`break`，`continue`的目标。例子如下：
+```go
+func main() {
+  A:
+    a := 1
+  B:
+    b := 2
+}
+```
+单纯的使用标签是没有任何意义的，需要结合其他关键字来进行使用。
+
+#### goto
+`goto`将控制权传递给在**同一函数**中**对应标签**的语句，示例如下：
+```go
+func main() {
+   a := 1
+   if a == 1 {
+      goto A
+   } else {
+      fmt.Println("b")
+   }
+A:
+   fmt.Println("a")
+}
+```
+在实际应用中`goto`用的很少，跳来跳去的很降低代码可读性，性能消耗也是一个问题
