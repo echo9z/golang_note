@@ -196,7 +196,7 @@ func countChar() {
 	// 正确方式：range遍历一次count++
 	count := 0
 	// Go 语言中 range 的一个特殊用法，当你不需要使用索引或值时，可以省略它们。
-	for range text { // 等价于 for _, _ range text{count++}
+	for range text { // 等价于 for _ range text{count++}
 		count++
 	}
 

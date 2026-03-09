@@ -3098,7 +3098,7 @@ t2 := time.Date(2025, 12, 25, 14, 15, 45, 0, time.UTC)
 fmt.Println("RFC3339:", t2.Format(time.RFC3339))// RFC3339: 2025-12-25T14:15:45Z
 fmt.Println("ANSIC:", t2.Format(time.ANSIC))// ANSIC: Thu Dec 25 14:15:45 2025
 ```
-注意：如果写出这种格式 时间必须是2006年01月02日 15:04:05这个时间，Go 的时间格式化必须使用固定的参考时间：Mon Jan 2 15:04:05 MST 2006。这是 Go 语言作者 Rob Pike 的生日（或者是容易记忆的时间点）。
+注意：如果写出这种格式 时间必须是2006年01月02日 15:04:05这个时间，Go 的时间格式化必须使用固定的参考时间：Mon Jan 2 15:04:05 MST 2006。
 
 ##### 解析时间字符串
 ```go
@@ -3167,6 +3167,7 @@ fmt.Println(500 * time.Millisecond) // 500 * 1毫秒
 fmt.Println(500 * time.Millisecond) // 500 * 1毫秒
 fmt.Println(time.Minute)            // 1分钟
 
+// 只暂停 main goroutine
 time.Sleep(2 * time.Second) // 暂停当前 goroutine 执行指定的时长，然后恢复执行。即time.Sleep睡2秒后，执行后面代码
 // time.Since(t Time) Duration：计算从时间 t 到现在经过的时长
 duration := time.Since(start)
@@ -3210,9 +3211,10 @@ fmt.Printf("秒数：%.2f\n", duration.Seconds())        // 秒数：1.50
 fmt.Printf("毫秒数：%.0f\n", duration.Milliseconds()) // 毫秒数：1500
 ```
 
-##### 定时器
-`time.NewTimer(d Duration)` 创建一个定时器，返回 `*time.Timer` 类型：
-- 2 秒后定时器会"到期"
+##### 一次性定时器
+Timer 是一个计时器，对外暴露一个 channel，当指定时间到了以后，channel 就会收到消息并关闭。
+`time.NewTimer(d Duration) *Timer` 创建一个一次性计时器，返回 `*time.Timer` 类型：
+- d 秒后定时器会"到期"
 - 到期后会向 `timer.C` 通道发送当前时间
 ```go
 // 定时器 - 只执行一次
@@ -3271,8 +3273,216 @@ default:
 }
 ```
 
+```go
+timer2 := time.NewTimer(5*time.Second) // 5秒中后会到期，到期后向timer.C通道发生消息
+
+// 创建一个协程，在这个goroutine中取消定时器
+go func ()  {
+  time.Sleep(1*time.Second) // 先sleep睡一秒
+  timer2.Stop() // 取消定时器
+}()
+
+select { // select语法是专门用于处理多个channel的发送/接收
+case <-timer2.C: // 如果定时器没有取消，则timer.C通道接收消息
+  fmt.Println("timer2定时器被触发了")
+default:
+  fmt.Println("timer2定时器被取消了")
+}
+
+执行流程：
+ 1.创建一个 5 秒的定时器
+ 2.启动 goroutine，1 秒后调用 timer2.Stop() 取消定时器
+ 3.select 立即检查：
+  timer2.C 还未收到数据（定时器被取消了）
+  执行 default 分支
+ 4.输出："timer2定时器被取消了"
+default 的作用：让 select 变成非阻塞的。
+
+// select {
+// case msg := <-ch1:
+//    // 从 ch1 接收数据
+// case ch2 <- value:
+//    // 向 ch2 发送数据
+// case <-time.After(1 * time.Second):
+//    // 超时处理
+// default:
+//    // 没有通道就绪时执行
+// }
+```
+
+1.超时控制
+```go
+func timerA() {
+  fmt.Println("start")
+  // 1.超时控制
+  timer3 := time.NewTimer(3 * time.Second) // 3等待3秒向timer.C通道发送消息
+  // 如果将3秒改为2秒，NewTimer中等待2秒的时间快与goroutine的sleep2秒时间，程序退出时，goroutine 还没来得及输出消
+  // 通过goroutine 模拟一个可能很慢的操作
+  go func() {
+    // 模拟耗时操作
+    time.Sleep(2 * time.Second)
+    fmt.Println("模拟操作操作任务完成")
+  }()
+
+  <-timer3.C // 阻塞等待接收timer3的通道消息
+  fmt.Println("等待超时或任务完成")
+  // 执行过程
+  // 创建一个 3 秒的定时器
+  // 启动 goroutine，2 秒后调用 输出：模拟操作操作任务完成
+  // 定时器到期后向timer3.C 发送消息
+  // timer3.C 接收到数据
+  // 输出：等待超时或任务完成
+}
+```
+
+Reset 重置（有坑！）
+```go
+gotimer := time.NewTimer(2 * time.Second)
+
+// 正确的 Reset 姿势：先 Stop，再排空 channel，再 Reset
+if !timer.Stop() {
+    select {
+    case <-timer.C: // 排空，防止残留信号
+    default:
+    }
+}
+timer.Reset(3 * time.Second)
+```
+直接调用 timer.Reset() 而不排空 channel，可能导致立即触发或逻辑混乱。
+
+超时控制最常见用法
+```go
+gofunc doWithTimeout(timeout time.Duration) error {
+    timer := time.NewTimer(timeout)
+    defer timer.Stop() // 释放资源
+
+    resultCh := make(chan string)
+    go func() {
+        time.Sleep(2 * time.Second) // 模拟耗时操作
+        resultCh <- "完成"
+    }()
+
+    select {
+    case result := <-resultCh:
+        fmt.Println("结果:", result)
+        return nil
+    case <-timer.C:
+        return fmt.Errorf("操作超时")
+    }
+}
+```
+
+一次性延时
+`time.After(duration)` 返回一个通道（`<-chan time.Time`），在指定的持续时间之后，会向该通道发送当前时间（仅发送一次）。
+```go
+  // 简单的延时
+  fmt.Println("开始：",time.Now().Format("2006-01-02 15:04:05"))
+  <-time.After(2*time.Second) // 阻塞 等待2秒
+  fmt.Println("2秒之后：",time.Now().Format("2006-01-02 15:04:05"))
+```
+
+2.可取消的延时
+```go
+func timerB() {
+  // 可取消的延迟，time.After返回一个 <-chan Time 类型的通道，在指定时间（1秒）后，会自动向该通道发送当前时间。
+  timer := time.NewTimer(2 * time.Second)
+
+  select {
+  case <-timer.C:
+    fmt.Println("定时器到期") // 2秒后执行
+  case <-time.After(1 * time.Second): // 在指定时间（1秒）后，会自动timer该通道发送当前时间。
+    fmt.Println("1秒后执行其他逻辑")
+    timer.Stop() // 取消原定时器
+  }
+  // 如果2秒内没有从 timer 收到结果，就会执行超时分支
+  //  执行流程：
+  // 创建一个2秒的定时器
+  // select 同时监听两个通道：
+  //    timer.C：2秒后收到信号
+  //    time.After(1 * time.Second)：1秒后收到信号
+  // 哪个先到就执行哪个：1秒通道先触发
+  // 执行 "1秒后执行其他逻辑"，并取消2秒定时器
+
+  // 超时控制 防止操作无限期等待
+  // 优先级选择  多个定时任务，先到先执行
+  // 资源清理 超时后释放资源或取消操作
+  //注意：time.After 会创建一个新定时器，如果频繁使用应考虑用 time.NewTimer + Reset 重用，避免内存泄漏
+}
+```
+
+3：循环定时器
+```go
+func timerC() {
+  // 循环定时器
+  timer := time.NewTimer(1 * time.Second)
+
+  for i :=0; i<3; i++ {
+    <-timer.C
+    fmt.Println("第", i+1,"次触发定时器")
+    // NewTimer定时器只会执行一次，通过timer.Reset重制定时器
+    timer.Reset(1*time.Second) // 重置NewTimer时间，下次继续用
+  }
+  timer.Stop() // 避免内存泄漏
+}
+```
+
+##### 周期性定时器
+Ticker 是一个定时器，与 timer 的区别在于，timer 是一次性的，而 Ticker 是定时触发。
+`time.NewTick(d Duration) *Ticker`：创建一个周期性定时器，每隔指定时间向通道发送当前时间
+```go
+type Ticker struct {
+	C <-chan Time  // 周期性发送时间的通道
+}
+```
+
+```go
+// 创建一个周期性定时器，每隔指定时间向通道发送当前时间，
+ticker := time.NewTicker(1 * time.Second) // 每隔1秒向通道发送一次时间；即每隔1秒，ticker 会自动往这个 channel 里塞入一个时间值。
+defer ticker.Stop()                       // defer 关键字作用，将调用函数推迟到当前函数的返回前执行，无论函数是正常返回还是 panic。
+
+count := 0 // 停止周期定时，flag
+// for range channel不停地从 channel 里取值，取一次执行一次，直到 channel 关闭。
+for range ticker.C { // 阻塞等待，每1秒接收一次通道信息
+  count++
+  fmt.Println("第",count,"次消息")
+  if count >= 5 { // 当前count大于5时，停止for循环；停止向通过过去时间
+    break
+  }
+}
+```
+等价于
+```go
+// 等价于
+ticker := time.NewTicker(1 * time.Second) 
+defer ticker.Stop()
+count2 := 0
+for {
+  count2++
+  // t, ok := <-ticker.C  t 是 time.Time，ok 是 bool
+  t, ok := <-ticker.C // 阻塞等待 channel 有值
+  if !ok{ // ok为false，channel 被关闭时退出
+    break
+  }
+  fmt.Println("第", count2, "次消息, 返回时间：", t.Format("15:04:05"))
+  if count2 >= 5 {
+    break
+  }
+}
+// ticker.C 永远不会自动关闭（除非调用 ticker.Stop()），所以 ok 值始终为 true（只要 ticker 还在运行）
+```
+
+```go
+ticker := time.NewTicker(1 * time.Second) 
+defer ticker.Stop()
+// 或者 直接使用for循环方式，比上述写法都要简洁
+for i:=0; i< 5;i++{
+  t := <-ticker.C // 阻塞等待，每1秒接收一次通道信息
+  fmt.Println("第", i, "次消息, 返回时间：", t.Format("15:04:05"))
+}
+```
+
 ### 控制结构
-Go 程序都是从 main () 函数开始执行，然后按顺序执行该函数体中的代码。但我们经常会需要只有在满足一些特定情况时才执行某些代码，也就是说在代码里进行条件判断。针对这种需求，Go 提供了下面这些条件结构和分支结构：
+Go 程序都是从`main()`函数开始执行，然后按顺序执行该函数体中的代码。但我们经常会需要只有在满足一些特定情况时才执行某些代码，也就是说在代码里进行条件判断。针对这种需求，Go 提供了下面这些条件结构和分支结构：
 - if-else 结构
 - switch 结构
 - select 结构，用于 channel 的选择
@@ -3312,7 +3522,7 @@ func main() {
 }
 ```
 
-`if`语句也可以包含一些简单的语句，例如：
+`if`可以包含一个初始化语句（如：给一个变量赋值），例如：
 ```go
 // if 的特殊语法：初始化语句 + 条件
 if 初始化语句; 条件 {
@@ -3323,6 +3533,7 @@ if v, err := strconv.Atoi(config["port"]); err != nil {
     // 错误处理分支
 } 
 ```
+注意：使用简短方式 `:=` 声明的变量的作用域只存在于 if 结构中（在 if 结构的大括号之间，如果使用 if-else 结构则在 else 代码块中变量也会存在）。
 
 优点：变量作用域限制
 ```go
@@ -3343,8 +3554,10 @@ if err != nil {
 }
 fmt.Println(v)  // v 在整个函数内都可见
 ```
+ 
+ Go 语言的函数经常使用两个返回值来表示执行是否成功：返回某个值以及 true 表示成功；返回零值（或 nil）和 false 表示失败。
+ 
  err 变量是否包含一个真正的错误（if err != nil）的习惯用法。如果确实存在错误，则会打印相应的错误信息然后通过 return 提前结束函数的执行。还可以使用携带返回值的 return 形式，例如`return err`。
-
 ```go
 value, err := pack1.Function1(param1)
 if err != nil {
@@ -3376,8 +3589,25 @@ switch expr {
     default statement
 }
 ```
-
-一个简单的例子如下
+多个可能符合条件的值，使用逗号分割它们，例如：`case val1, val2, val3`。
+注意：go语言中每个case语句结束不需要声明break，自动break。Java / JavaScript / C语言中自动 fallthrough	
+```javascript
+// JavaScript
+let i = 1;
+switch (i) {
+    case 1:
+        console.log("1");
+        // 不写 break，会继续执行 case 2
+    case 2:
+        console.log("2");
+        break;  // 必须写 break 才能停止
+    case 3:
+        console.log("3");
+        break;
+}
+// 输出：1 \n 2（因为没有 break，fallthrough 了）
+```
+ Go 的写法（默认自动 break），一个简单的例子：
 ```go
 func main() {
    str := "a"
@@ -3392,6 +3622,23 @@ func main() {
       str += "CCCC"
    }
    fmt.Println(str)
+}
+```
+
+通过`fallthrough`关键字来继续执行相邻的下一个分支。
+```go
+func main() {
+    i := 1
+    switch i {
+    case 1:
+        fmt.Println("1")
+        fallthrough  // 强制执行下一个 case，会继续执行下一个分支
+    case 2:
+        fmt.Println("2")
+        // 这里没有 fallthrough，自动结束
+    case 3:
+        fmt.Println("3")
+    }
 }
 ```
 
@@ -3413,6 +3660,7 @@ func f() int {
   return 1
 }
 ```
+
 `switch`语句也可以没有入口处的表达式。
 ```go
 func main() {
@@ -3424,23 +3672,6 @@ func main() {
       num--
    case num < 0:
       num *= num
-   }
-   fmt.Println(num)
-}
-```
-
-通过`fallthrough`关键字来继续执行相邻的下一个分支。
-```go
-func main() {
-   num := 2
-   switch {
-   case num >= 0 && num <= 1:
-      num++
-   case num > 1:
-      num--
-      fallthrough // 执行完该分支后，会继续执行下一个分支
-   case num < 0:
-      num += num
    }
    fmt.Println(num)
 }
@@ -3467,6 +3698,24 @@ case r == 'b':
     fmt.Println("是字符 b")
 default:
     fmt.Println("其他字符")
+}
+```
+
+switch 初始化语句的语法
+```go
+switch 初始化语句; 表达式 {
+    // ...
+}
+
+switch v, err :=strconv.Atoi("12"); true{
+	case err != nil:
+	    fmt.Println("转换错误:", err)
+	case v < 0:
+		fmt.Println("转换的值小于0")
+	case v > 0:
+		fmt.Println("转换的值大于0")
+	default:
+	    fmt.Println("值为0")
 }
 ```
 
@@ -3497,3 +3746,121 @@ A:
 }
 ```
 在实际应用中`goto`用的很少，跳来跳去的很降低代码可读性，性能消耗也是一个问题
+
+#### for循环
+在 Go 中，有仅有一种循环语句：`for`，Go 抛弃了`while`语句，`for`语句可以被当作`while`来使用。
+
+语句格式如下
+
+```go
+for init statement; expression; post statement {
+  execute statement
+}
+```
+
+eg:
+```go
+// 在go中使用 for (i = 0; i < 10; i++) { }，这是无效的代码！不需要括号 ()
+for i := 0; i < 10; i++ {
+    fmt.Println(i)
+}
+// 初始化循环多个变量
+for i, j := 0, 100; i < 100 && j < 200; i, j = i+1, j+1 {
+    fmt.Printf("i: %d j: %d", i, j)
+}
+// 变量二位数组
+var arr [2][3]int = [2][3]int{
+    {1, 2, 3},
+    {4, 5, 6},
+}
+fmt.Println("访问元素arr二维中第一个元素:", arr[1][0]) // 4
+// 遍历这个二维数组
+for i := 0; i < len(arr); i++ {
+    for j := 0; j < len(arr[i]); j++ {
+        fmt.Print(arr[i][j])
+        if len(arr[i])-1 == j {
+            fmt.Println("")
+        }
+    }
+}
+```
+
+当只保留循环条件时，就变成了`while`。
+```go
+for expression {
+  execute statement
+}
+```
+
+```go
+// go中类似while语法
+sum := 1
+for sum <= 100 {
+    sum += sum
+}
+fmt.Println("sum:", sum)
+```
+
+for true { }，但一般情况下都会直接写 for { }。如果 for 循环的头部没有条件语句，那么就会认为条件永远为 true，因此循环体内必须有相关的条件判断以确保会在某个时刻退出循环。想要直接退出循环体，可以使用 break 语句或 return 语句直接返回。
+```go
+for {
+  execute statement
+}
+```
+
+```go
+// 无限死循环
+// 通常通过 break、return 或 panic 退出
+i := 0
+for { // 等价于 for true {}
+    if i > 10 {
+        break
+    }
+    if i == 5 {
+        fmt.Println("i=5 is continue", i)
+        i++ // 一定要对i进行变量添加变化，不然continue跳过就i值永远为5，进入死循环
+        continue
+    }
+    fmt.Println(i)
+    i++
+}
+// 下面没有补充条件，出现死循环
+// for i := 0; ; i++ {
+//   fmt.Println("Value of i is now:", i)
+// }
+// for i := 0; i < 3; {
+//   fmt.Println("Value of i:", i)
+// }
+```
+
+双循环打印九九乘法表：
+```go
+// 九九乘法表
+for i := 1; i <= 9; i++ {
+  for j := 1; j <= i; j++ {
+    fmt.Printf("%d*%d=%d\t", i, j, i*j)
+  }
+  fmt.Println()
+}
+
+for i := 1; i <= 9; i++ {
+  for j := 1; j <= 9; j++ {
+    if i <= j { // i每次要从 i和j相等开始计算
+      fmt.Printf("%d*%d=%2d\t", i, j, i*j)
+    }
+  }
+  fmt.Println()
+}
+```
+
+##### for range
+Go 提供了 `for range` 语法，用于便捷地遍历数组、切片、字符串、map 或通道（channel）。其基本形式为：
+```go
+for index, value := range collection {
+    // 使用 index 和 value
+}
+```
+- 对于数组、切片：`index` 是整数索引，`value` 是元素值的副本。
+- 对于字符串：`index` 是字节索引（不是字符索引），`value` 是 `rune` 类型（Unicode 码点）。遍历字符串时是按 UTF-8 字符依次迭代，索引可能不连续（因为字符可能占多字节）。
+- 对于 map：`index` 是键（key），`value` 是对应的值。遍历顺序是随机的，不保证与插入顺序一致。
+- 对于通道：只有 `value`，没有索引，直到通道关闭前不断接收值。

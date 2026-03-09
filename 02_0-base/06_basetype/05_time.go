@@ -126,9 +126,10 @@ func main() {
 	fmt.Println(500 * time.Millisecond) // 500 * 1毫秒
 	fmt.Println(time.Minute)            // 1分钟
 
+	// 只暂停 main goroutine
 	time.Sleep(2 * time.Second) // 暂停当前 goroutine 执行指定的时长，然后恢复执行。即time.Sleep睡2秒后，执行后面代码
 	// time.Since(t Time) Duration：计算从时间 t 到现在经过的时长
-	duration := time.Since(start)
+	duration := time.Since(start)  // time.Since(t) 与 time.Now().Sub(t) 的等价关系。用于计算两个时间点的差值。
 	fmt.Println("耗时：", duration)           // 耗时： 2.0006042s
 	fmt.Println("秒数：", duration.Seconds()) //  2.0006042
 	fmt.Println("毫秒数：", duration.Milliseconds()) // 毫秒数： 2000
@@ -186,6 +187,7 @@ func main() {
 
 	// 创建一个协程，在这个goroutine中取消定时器
 	go func ()  {
+		// 只暂停 当前的 goroutine
 		time.Sleep(1*time.Second) // 先sleep睡一秒
 		timer2.Stop() // 取消定时器
 	}()
@@ -196,16 +198,50 @@ func main() {
 	default:
 		fmt.Println("timer2定时器被取消了")
 	}
-	// select {
+	// 执行流程：
+	// 创建一个 5 秒的定时器
+	// 启动 goroutine，1 秒后调用 timer2.Stop() 取消定时器
+	// select 立即检查：
+	// timer2.C 还未收到数据（定时器被取消了）
+	// 执行 default 分支
+	// 输出："timer2定时器被取消了"
+	// 这里 default 的作用：让 select 变成非阻塞的。
+
+	// 	// select {
 	// case msg := <-ch1:
 	// 		// 从 ch1 接收数据
 	// case ch2 <- value:
 	// 		// 向 ch2 发送数据
-	// case <-time.After(1 * time.Second):
+	// case <-time.After(1 * time.Second): // 之后等待时间结束后，将当前时间发送到返回的信道上。它相当于 NewTimer(d).C
 	// 		// 超时处理
 	// default:
 	// 		// 没有通道就绪时执行
 	// }
+
+	// 1.超时控制
+	timer3 := time.NewTimer(3*time.Second) // 3等待3秒向timer.C通道发送消息
+	// 通过goroutine 模拟一个可能很慢的操作
+	go func() {
+		// 模拟耗时操作
+		time.Sleep(2*time.Second)
+		fmt.Println("模拟操作操作任务完成")
+	}()
+
+	<-timer3.C // 阻塞等待接收timer3的通道消息
+	fmt.Println("等待超时或任务完成")
+
+	doSomethingWithTimeout := func () {
+    timer := time.NewTimer(2 * time.Second)
+    
+    select {
+    case <-timer.C:
+        fmt.Println("定时器到期")
+    case <-time.After(1 * time.Second):
+        fmt.Println("1秒后执行其他逻辑")
+        timer.Stop() // 取消原定时器
+    }
+	}
+	doSomethingWithTimeout()
 
 	// 时区处理
 	local := time.Local
