@@ -83,39 +83,54 @@ func main() {
 
 	// 4.for range 语法，用于便捷地遍历数组、切片、字符串、map 或通道（channel）
 	// 遍历数组/切片
-	nums := []int64{12,13,14,15}
+	nums := []int64{12, 13, 14, 15}
 	for i, v := range nums {
-		fmt.Printf("索引:%d,值:%d\n",i,v)
+		fmt.Printf("索引:%d,值:%d\n", i, v)
 	}
 	for _, v := range nums { // 忽略索引
-    fmt.Println(v)
+		fmt.Println(v)
 	}
 	for i := range nums { // 只要索引
-    fmt.Println(i)
+		fmt.Println(i)
 	}
 
 	// 遍历map
 	// m := map[string]interface{} { // interface{}表示接收任何值 或者使用在1.18引入的泛型any
-	m := map[string]any {
+	m := map[string]any{
 		"name": "tom",
-		"age": 15,
+		"age":  15,
 	}
-	for k,v := range m {
+	for k, v := range m {
 		fmt.Printf("键 %s, 值 %s\n", k, v)
 	}
 	// 遍历字符串
 	str := "hello, 世界！"
 	for idx, r := range str {
-		fmt.Printf("idx：%d 字符：%c\n",idx, r) // 索引不是连续的，因为中文字符占3个字节
+		fmt.Printf("idx：%d 字符：%c\n", idx, r) // 索引不是连续的，因为中文字符占3个字节
 	}
 	// 从通道接收
-	
+	// 创建缓冲区通道，没有make没有初始缓冲区大小，无缓冲 channel 的发送和接收必须同时就绪，像"握手"一样。
+	ch := make(chan int)
 
+	// 使用goroutine 发送数据
+	go func() {
+		for i := 0; i < 5; i++ {
+			ch <- i // 循环向缓冲区通道发送消息
+		}
+		close(ch)
+	}()
+
+	// 循环接收消息，直到通道关闭
+	for val := range ch {
+		fmt.Println("接收通道：", val)
+	}
+
+	// 描述下，下面代码的输出结果
 	// for i := 0; ; i++ {
-  //   fmt.Println("Value of i is now:", i)
+	//   fmt.Println("Value of i is now:", i)
 	// }
 	// for i := 0; i < 3; {
-  //   fmt.Println("Value of i:", i)
+	//   fmt.Println("Value of i:", i)
 	// }
 	s := ""
 	for s != "aaaaa" {
@@ -126,4 +141,37 @@ func main() {
 	for i, j, s := 0, 5, "a"; i < 3 && j < 100 && s != "aaaaa"; i, j, s = i+1, j+1, s+"a" {
 		fmt.Println("Value of i, j, s:", i, j, s)
 	}
+
+	// 5.break终止本次for循环
+	var iCount int = 5
+	for {
+		if iCount < 0 {
+			break
+		}
+		fmt.Println("i值：", iCount)
+		iCount--
+	}
+
+	// break终止最内层for循环，同时也可以结合label标签终止外层循环效果
+	for i := 0; i <= 2; i++ {
+		for j := 0; j <= 3; j++ {
+			if j > 2 {
+				break
+			}
+			fmt.Printf("i:%d, j:%d\t", i, j)
+		}
+		fmt.Println("")
+	}
+
+	// continue：跳过本次循环体，直接进入下一次循环过程
+	// 关键字 continue 只能被用于 for 循环中
+	for i := 0; i < 10; i++ {
+		if i == 5 {
+			fmt.Printf("i:%d被跳过了",i)
+			continue
+		}
+		fmt.Println("i值：", i)
+	}
 }
+
+// label与goto

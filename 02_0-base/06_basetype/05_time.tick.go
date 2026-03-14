@@ -28,7 +28,7 @@ func main() {
 
 	// Example：
 	// Ticker1()
-	// heartbeat()
+	heartbeat()
 	retryExample()
 	dataPolling()
 }
@@ -196,7 +196,7 @@ func heartbeat() {
 	// 模拟10秒后结束停止心跳
 	go func ()  {
 		time.Sleep(10*time.Second)
-		done<-true
+		done<-true // 10秒后向缓冲区通道发送true消息
 	}()
 
 	beatCount :=0
@@ -207,7 +207,8 @@ func heartbeat() {
 			fmt.Printf("第%d次心跳检测：%s\n", beatCount, t.Format("15:04:05"))
 		case <-done:
 			fmt.Println("心跳检测停止...")
-			return
+			// close(done)
+			return // 直接返回，停止for循环
 		}
 	}
 }
@@ -228,19 +229,20 @@ func scheduledTask()  {
 	}
 }
 
+// 
 func retryExample() {
     ticker := time.NewTicker(2 * time.Second)
     defer ticker.Stop()
 
     for i := 0; i < 3; i++ {
         <-ticker.C
-        fmt.Printf("🔄 第 %d 次重试\n", i+1)
+        fmt.Printf("第%d 次重试\n", i+1)
         
         if i == 2 {
-            fmt.Println("✅ 重试成功")
+            fmt.Println("重试成功")
             return
         }
-        fmt.Println("❌ 重试失败")
+        fmt.Println("重试失败")
     }
 }
 
@@ -264,8 +266,8 @@ func dataPolling() error {
 				return nil
 			}
 		case <-timeout.C: // 超出6秒：轮询超时
-		  fmt.Errorf("轮询超时")
+			fmt.Errorf("轮询超时")
 			return errors.New("轮询超时")
-	}
+		}
 	}
 }

@@ -3481,6 +3481,81 @@ for i:=0; i< 5;i++{
 }
 ```
 
+1.心跳检测
+```go
+func heartbeat() {
+    ticker := time.NewTicker(2*time.Second)// 每2秒发送一次
+    defer ticker.Stop()
+
+    // 创建一个channel通道，无缓冲区的通道
+    done := make(chan bool)
+
+    // 模拟10秒后结束停止心跳
+    go func ()  {
+        time.Sleep(10*time.Second)
+        done<-true
+    }()
+
+    beatCount :=0
+    for {
+        beatCount++
+        select {
+        case t:=<-ticker.C:
+            fmt.Printf("第%d次心跳检测：%s\n", beatCount, t.Format("15:04:05"))
+        case <-done:
+            fmt.Println("心跳检测停止...")
+            return
+        }
+    }
+}
+```
+
+2.定时任务
+```go
+func scheduledTask()  {
+    ticker := time.NewTicker(2*time.Second)// 每2秒发送一次
+    defer ticker.Stop()
+
+    taskCount := 0
+    for t := range ticker.C { // 持续从 channel 读取
+        taskCount++
+        fmt.Printf("执行第 %d 次任务：%s\n", taskCount, t.Format("15:04:05"))
+    // 执行定时任务逻辑... ...
+        if taskCount >= 5{
+            return
+        }
+    }
+}
+```
+
+3.数据轮询
+```go
+func dataPolling() error {
+    // 循环定时器，每1秒钟循环执行一次
+    ticker := time.NewTicker(1  *time.Second)
+    defer ticker.Stop() // 以免内存泄漏
+    // 创建一次性定时器，超过6秒
+    timeout := time.NewTimer(6*time.Second)
+    defer timeout.Stop()
+
+    pollCount := 0
+    for {
+        select {
+        case t := <-ticker.C: // 阻塞等待，每1秒接收一次通道信息
+            pollCount++
+            fmt.Printf("第%d次轮询：%s\n",pollCount, t.Format("15:04:05"))
+            if pollCount  == 3{
+                fmt.Println("轮询找到数据")
+                return nil
+            }
+        case <-timeout.C: // 超出6秒：轮询超时
+            fmt.Errorf("轮询超时")
+            return errors.New("轮询超时")
+        }
+    }
+}
+```
+
 ### 控制结构
 Go 程序都是从`main()`函数开始执行，然后按顺序执行该函数体中的代码。但我们经常会需要只有在满足一些特定情况时才执行某些代码，也就是说在代码里进行条件判断。针对这种需求，Go 提供了下面这些条件结构和分支结构：
 - if-else 结构
@@ -3724,9 +3799,22 @@ switch v, err :=strconv.Atoi("12"); true{
 ```go
 func main() {
   A:
-    a := 1
-  B:
-    b := 2
+    fmt.Println("a")
+  B: {
+	b := 20
+	fmt.Println("b", b)
+  }
+}
+
+错误：标签后不能直接声明变量
+// Label3:
+//     z := 30  // 编译错误
+
+正确：使用语句块
+Label1:
+{
+    x := 10
+    fmt.Println("Label1: x =", x)
 }
 ```
 单纯的使用标签是没有任何意义的，需要结合其他关键字来进行使用。
@@ -3750,8 +3838,7 @@ A:
 #### for循环
 在 Go 中，有仅有一种循环语句：`for`，Go 抛弃了`while`语句，`for`语句可以被当作`while`来使用。
 
-语句格式如下
-
+语句格式：
 ```go
 for init statement; expression; post statement {
   execute statement
@@ -3801,6 +3888,7 @@ for sum <= 100 {
 fmt.Println("sum:", sum)
 ```
 
+##### 无限死循环
 for true { }，但一般情况下都会直接写 for { }。如果 for 循环的头部没有条件语句，那么就会认为条件永远为 true，因此循环体内必须有相关的条件判断以确保会在某个时刻退出循环。想要直接退出循环体，可以使用 break 语句或 return 语句直接返回。
 ```go
 for {
@@ -3864,3 +3952,98 @@ for index, value := range collection {
 - 对于字符串：`index` 是字节索引（不是字符索引），`value` 是 `rune` 类型（Unicode 码点）。遍历字符串时是按 UTF-8 字符依次迭代，索引可能不连续（因为字符可能占多字节）。
 - 对于 map：`index` 是键（key），`value` 是对应的值。遍历顺序是随机的，不保证与插入顺序一致。
 - 对于通道：只有 `value`，没有索引，直到通道关闭前不断接收值。
+
+```go
+//遍历数组/切片
+nums := []int64{12,13,14,15}
+for i, v := range nums {
+    fmt.Printf("索引:%d,值:%d\n",i,v)
+}
+for _, v := range nums { // 忽略索引
+	fmt.Println(v)
+}
+for i := range nums { // 只要索引
+	fmt.Println(i)
+}
+```
+
+```go
+// 遍历字符串
+str := "hello, 世界！"
+for idx, r := range str {
+    fmt.Printf("idx：%d 字符：%c\n",idx, r) // 索引不是连续的，因为中文字符占3个字节
+}
+```
+
+```go
+// 遍历map
+// m := map[string]interface{} { // interface{}表示接收任何值 或者使用在1.18引入的泛型any
+m := map[string]any {
+    "name": "tom",
+    "age": 15,
+}
+for k,v := range m {
+    fmt.Printf("键 %s, 值 %s\n", k, v)
+}
+```
+
+```go
+// 从通道接收
+// 创建缓冲区通道，没有make没有初始缓冲区大小，无缓冲 channel 的发送和接收必须同时就绪，像"握手"一样。
+ch := make(chan int)
+
+// 使用goroutine 发送数据
+go func ()  {
+    for i:=0;i<5;i++ {
+        ch <- i // 循环向缓冲区通道发送消息
+    }
+    close(ch)
+}()
+
+// 循环接收消息，直到通道关闭
+for val := range ch {
+    fmt.Println("接收通道：",val)
+}
+```
+
+##### break和continue
+break关键字，终止本次for循环
+```go
+var iCount int = 5
+for {
+    if iCount < 0 {
+        break
+    }
+    fmt.Println("i值：", iCount)
+    iCount--
+}
+```
+
+break终止最内层for循环，同时也可以结合label标签终止外层循环效果
+```go
+for i := 0; i <= 2; i++ {
+    for j := 0; j <= 3; j++ {
+        if j > 2 {
+            break
+        }
+        fmt.Printf("i:%d, j:%d\t", i, j)
+    }
+    fmt.Println("")
+}
+
+// i:0, j:0	i:0, j:1	i:0, j:2	
+// i:1, j:0	i:1, j:1	i:1, j:2	
+// i:2, j:0	i:2, j:1	i:2, j:2
+```
+
+关键字 `continue` 跳过本次的循环体的内容，而直接进入下一次循环的过程，但不是无条件执行下一次循环，执行之前依旧需要满足循环的判断条件。
+```go
+for i := 0; i < 10; i++ {
+    if i == 5 {
+        fmt.Printf("i:%d被跳过了",i)
+        continue
+    }
+    fmt.Println("i值：", i)
+}
+```
+关键字 `continue` 只能被用于 for 循环中。

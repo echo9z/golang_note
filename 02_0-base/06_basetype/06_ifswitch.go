@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"math/rand"
 	"os"
 	"runtime"
 	"strconv"
@@ -149,7 +150,28 @@ func main() {
     fmt.Println("值为0")
 	}
 
-	// 三、label与goto
+	// label标签通常与goto，break，continue进行使用
+	
+	// 生成[0.0到1.0)的随机浮点数
+	flag := rand.Float64()
+	if flag >= 0.5 {
+		goto A
+		var val float64 = float64(a) + flag
+		fmt.Printf("flag:%f, val:%f", a, val)
+	} else {
+		goto B
+		var val float64 = float64(b) + flag
+		fmt.Printf("flag:%f, val:%f", b, val)
+	}
+
+	A:{
+		a := 10
+		fmt.Println("a", a)
+	}
+	B:{
+		b := 20
+		fmt.Println("b", b)
+	}
 }
 
 // 使用var 变量为全局变量直接初始化
