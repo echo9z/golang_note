@@ -1088,3 +1088,189 @@ for i := 0; i < 3; i++ {
 ```
 这样每个 goroutine 捕获的是独立的副本，值就固定为迭代时的值（0、1、2）。
 总结：“都是3”的原因是：循环结束后，所有 goroutine 读取的是同一个循环变量，而该变量最后的值为 3。这正是 Go 循环变量捕获的经典陷阱。
+
+
+## go中的close函数
+
+Go 中的 `close` 函数只用于**channel**，用于关闭一个 channel，表示不再会向其发送数据。
+
+**基本用法**
+
+```go
+ch := make(chan int)
+close(ch) // 关闭 channel
+```
+
+**核心规则**
+
+1. **只能关闭发送端** — 向已关闭的 channel 发送数据会 **panic**
+2. **接收端可正常读取** — 关闭后仍可从中接收，直到缓冲区为空，之后返回零值
+3. **可用 `v, ok := <-ch` 判断是否已关闭** — `ok` 为 `false` 表示 channel 已关闭且无数据
+4. **不能关闭已关闭的 channel** — 会 **panic**
+5. **不能关闭只接收的 channel** — 编译错误
+
+```go
+ch := make(chan int, 2)
+ch <- 1
+ch <- 2
+close(ch)
+
+fmt.Println(<-ch)      // 1
+fmt.Println(<-ch)      // 2
+fmt.Println(<-ch)      // 0（零值，已无数据）
+
+v, ok := <-ch
+fmt.Println(v, ok)     // 0 false（ok=false 表示已关闭）
+```
+
+**配合 `for range` 遍历**
+
+```go
+ch := make(chan int)
+go func() {
+    ch <- 10
+    ch <- 20
+    close(ch) // 必须关闭，否则 for range 会死锁
+}()
+
+for v := range ch {
+    fmt.Println(v) // 10, 20
+}
+```
+
+`for range` 遍历 channel 时，必须由发送方 `close`，否则接收方会永远阻塞。**谁负责 close**，由**发送方**关闭，不是接收方。这是 Go 的惯例。
+
+
+## make(chan struct{})的chan struct{}是什么意思
+
+`chan struct{}` 是一个元素类型为 `struct{}` 的 channel。
+
+**`struct{}`** 是 Go 中的空结构体，占用 **0 字节内存**。
+
+```go
+var s struct{}
+fmt.Println(unsafe.Sizeof(s)) // 0
+```
+
+**所以 `chan struct{}` 就是一个不传任何数据的 channel**，只用来做信号通知——"事情做完了"或"该你了"，不关心传什么值。
+
+对比：
+
+```go
+ch := make(chan int)        // 传整数，占 8 字节
+ch <- 1
+
+done := make(chan struct{}) // 只发信号，占 0 字节
+done <- struct{}{}          // 发送一个空结构体实例
+```
+
+`struct{}{}` 是两步：`struct{}` 是类型，后面的 `{}` 是实例化。
+
+**典型用法**
+
+```go
+done := make(chan struct{})
+
+go func() {
+    // 做些工作...
+    close(done) // 或 done <- struct{}{}
+}()
+
+<-done // 阻塞等待，收到就继续
+```
+
+
+给出统一错误处理/资源清理其他例子
+
+**例子 1：多步资源分配，逐层清理**
+
+```go
+func connect() (*DB, *Conn, *Stmt, error) {
+    db, err := OpenDB()
+    if err != nil {
+        goto ErrDB
+    }
+
+    conn, err := db.Connect()
+    if err != nil {
+        goto ErrConn
+    }
+
+    stmt, err := conn.Prepare("SELECT ...")
+    if err != nil {
+        goto ErrStmt
+    }
+
+    return db, conn, stmt, nil
+
+ErrStmt:
+    conn.Close()
+ErrConn:
+    db.Close()
+ErrDB:
+    return nil, nil, nil, err
+}
+```
+
+跳到对应标签，只清理已分配的资源，避免空指针。
+
+**例子 2：多步初始化（Linux 内核风格，Go 标准库常见）**
+
+```go
+func loadImage(path string) (Image, error) {
+    f, err := os.Open(path)
+    if err != nil {
+        goto err0
+    }
+
+    data, err := io.ReadAll(f)
+    if err != nil {
+        goto err1
+    }
+
+    img, err := decode(data)
+    if err != nil {
+        goto err1
+    }
+
+    return img, nil
+
+err1:
+    f.Close()
+err0:
+    return Image{}, err
+}
+```
+
+**例子 3：带多个资源的事务处理**
+
+```go
+func transfer(from, to string, amount int) error {
+    tx, err := db.Begin()
+    if err != nil {
+        goto Fail
+    }
+
+    _, err = tx.Exec("UPDATE accounts SET balance = balance - ? WHERE id = ?", amount, from)
+    if err != nil {
+        goto Rollback
+    }
+
+    _, err = tx.Exec("UPDATE accounts SET balance = balance + ? WHERE id = ?", amount, to)
+    if err != nil {
+        goto Rollback
+    }
+
+    err = tx.Commit()
+    if err != nil {
+        goto Fail
+    }
+    return nil
+
+Rollback:
+    tx.Rollback()
+Fail:
+    return err
+}
+```
+**对比 `defer`**：`defer` 也能做清理，但 `goto` 的优势是可以**按需清理**，不会每次都执行所有清理逻辑，且逻辑更集中、更直观。Go 标准库（如 `math/big`、`runtime` 包）中大量使用了这种 `goto` 模式。

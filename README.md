@@ -1666,7 +1666,7 @@ func (s Season) IsValid() bool {
 func main() {  
     // Go 语言没有为枚举单独设计，而是通过 自定类型+const+iota 实现  
     var season Season = Summer  
-    fmt.Printf("当前季节:%s (值%d)\n", season, int(season)) // 输出: 当前季节: Summer  %s输出字符串, %d输出十进制整数  
+    fmt.Printf("当前季节:%s (值%d)\n", season, int(season)) // 输出: 当前季节: Summer (值1)  %s输出字符串, %d输出十进制整数  
     fmt.Printf("季节是否有效: %t\n", season.IsValid())  
 }
 ```
@@ -3581,7 +3581,7 @@ if expression {
 ```go
 if expression {
  ... ...
-}else {
+} else {
  ... ...
 }
 ```
@@ -3608,6 +3608,12 @@ if 初始化语句; 条件 {
 
 if v, err := strconv.Atoi(config["port"]); err != nil {
     // 错误处理分支
+}
+
+if num := 9; num < 10 {
+    fmt.Println(num, "小于10")
+} else {
+    fmt.Println(num, "大于等于10")
 } 
 ```
 注意：使用简短方式 `:=` 声明的变量的作用域只存在于 if 结构中（在 if 结构的大括号之间，如果使用 if-else 结构则在 else 代码块中变量也会存在）。
@@ -3821,6 +3827,79 @@ Label1:
 ```
 单纯的使用标签是没有任何意义的，需要结合其他关键字来进行使用。
 
+##### label与break
+立即终止标签所关联的 `for`、`switch` 或 `select` 语句块的执行，控制流转到该语句块之后。
+```go
+    // 嵌套循环中，break 默认只退出最内层循环，终止forloop。配合 label 可以直接退出外层循环。
+    for i:=0;i<3;i++ {
+        for j:=0;j<3;j++{
+            if i == 1 && j == 1{
+                break // break只会停止(i=1,j=1)至(i=1,j=2)的循环，只会停止最内层j的循环
+            }
+            fmt.Printf("(%d,%d)\t", i, j)
+        }
+    }
+    // (0,0)   (0,1)   (0,2)   (1,0)   (2,0)   (2,1)   (2,2)
+    fmt.Printf("\n")
+BreakF:
+    for i:=0;i<3;i++ {
+        for j:=0;j<3;j++{
+            if i == 1 && j == 1{
+                break BreakF // 直接跳到最外层。如果不加label，break只会停止i=1,j=1--i=1,j=2，只会停止最内层
+            }
+            fmt.Printf("(%d,%d)\t", i, j)
+        }
+    }
+```
+
+break与label标签，用于 switch / select 跳出最外层逻辑结构
+在 select 或 switch 内部，若想跳出外层的 for 循环，也必须使用带标签的 break。
+```go
+// 在 select 或 switch 内部，若想跳出外层的 for 循环，也必须使用带标签的 break。
+var breakSelect func() = func ()  {
+    ch := make(chan int) // 创建一个int整型通道
+    // chan struct{} 就是一个不传任何数据的通道
+    done := make(chan struct{}) // struct{} 是 Go 中的空结构体，占用 0 字节内存。
+
+    // 开启一个goroutine 协程
+    go func() {
+        ch <- 25 // 向ch通道发生25
+        // close(done) 就是用关闭来发信号，和发送 struct{}{} 效果一样——接收方都能收到通知。
+        close(done) // 关闭done通道，发出完成信号 或发送空实例 done <- struct{}{}
+    }()
+Loop:
+    for {
+        select {
+        case val:= <- ch:  // 接收25数据，输出
+            fmt.Printf("val: %d", val)
+        case <- done: // 收到完成信号，跳出整个循环
+            break Loop
+        }
+    }
+
+    fmt.Println("Exited")
+}
+
+breakSelect()
+```
+
+##### label与continue
+跳过当前循环的剩余迭代，但前提是标签必须定义在一个 `for` 循环之前，然后直接开始该标签所标识的外层循环的下一次迭代。
+```go
+// continue与Label
+ContinueF:
+    for i := 0; i < 3; i++ {
+        for j := 0; j < 3; j++ {
+            if j == 1 { // 内部循环j等于1时，结束本次循环，跳转至标签ContinueF处，回到外层 i 自增。
+                continue ContinueF
+            }
+            fmt.Printf("(%d,%d)\t", i, j) // 输出：(0,0) (1,0) (2,0)
+        }
+    }
+```
+
+
+
 #### goto
 `goto`将控制权传递给在**同一函数**中**对应标签**的语句，示例如下：
 ```go
@@ -3837,8 +3916,110 @@ A:
 ```
 在实际应用中`goto`用的很少，跳来跳去的很降低代码可读性，性能消耗也是一个问题
 
-##### 非法示例（跳过声明）
+##### 错误跳过声明
+不能跳过在其下方定义和在标签上方声明的变量。
+```go
+	var aa int = 15
+	goto goLabel // 不能跳过变量声明语句。如果跳转到变量声明之前，而该变量在跳转之后又被使用，编译器会报错。
+	cc := 20 // goto与label之间都会被跳过
+	goLabel:
+		fmt.Println(aa+cc)
+```
 
+#####  同一个函数内部
+标签和跳转必须在 **同一个函数**内部。不能使用 `goto` 从一个函数跳到另一个函数，也不能跳转到 for/switch 的内部。
+```go
+	// 标签和跳转必须在 同一个函数 内部
+	func sum(a int)  {
+		var str string = "hello go"
+		fmt.Println(str)
+		goto labelFn // goto只能在同一个函数内跳转
+	}
+
+	func sum2(b int)  {
+		labelFn:
+			fmt.Println(b)
+	}
+```
+
+##### 不能从外部跳入代码块内部
+
+`goto` 不允许从一个代码块**外部**跳转到该块的**内部**（比如 `if`、`for`、`switch` 的体内部）。但允许从内部跳到外部。
+```go
+func bad() {
+    if cond {
+        goto Inside  // 错误：从外部跳入 for 块
+    }
+    for i:=5; i<0; i++ {
+    Inside:
+       // ...
+    }
+}
+```
+
+##### 集中处理错误和资源清理
+在 C 语言中，这被称为 `goto error/cleanup` 模式。当一个函数中有多处可能发生错误，且错误发生后需要执行相同的清理操作（如关闭文件、释放锁）时，使用 `goto` 可以避免重复写清理代码（尽管在 Go 中我们很多时候会优先考虑 `defer`，但某些复杂场景下 `goto` 仍然有用）。
+```go
+// 统一错误处理/资源清理
+readFile := func(path string) ([]byte, error) {
+    var (
+        // 这样声明处理golsp出现的跳过了声明的变量
+        f    *os.File
+        err  error
+        info fs.FileInfo
+        buf  []byte
+    )
+    f, err = os.Open(path)
+    if err != nil {
+        // 如果打开指定文件路径出现错误，err不空值，通过goto跳转至统一处理错误
+        goto ErrorL
+    }
+
+    info, err = f.Stat() // 获取文件信息
+    if err != nil {
+        goto ErrorL
+    }
+
+    buf = make([]byte, info.Size()) //
+    _, err = f.Read(buf)            // 将文件内容读取到字节切片中
+    if err != nil {
+        goto ErrorL
+    }
+
+    f.Close()
+    return buf, nil
+    // 统一处理错误
+ErrorL:
+    f.Close() // 关闭文件资源
+    return nil, err
+}
+by, _ := readFile("02_0-base/06_basetype/00_format.go")
+fmt.Println("读取文件内容", string(by))
+
+// 用 defer 替代 goto，这是 Go 惯用写法
+readFile := func(path string) ([]byte, error) {
+  f, err := os.Open(path)
+  if err != nil {
+      return nil, err
+  }
+  defer f.Close() // 函数返回时自动关闭，无需 goto
+
+  info, err := f.Stat()
+  if err != nil {
+      return nil, err
+  }
+
+  buf := make([]byte, info.Size())
+  _, err = f.Read(buf)
+  if err != nil {
+      return nil, err
+  }
+
+  return buf, nil
+}
+```
+
+![](./go.assets/img/goto.png)
 
 
 #### for循环

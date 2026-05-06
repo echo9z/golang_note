@@ -76,7 +76,7 @@ func (LogLevel) ValidLevels() []LogLevel {
 func main() {
 	// Go 语言没有为枚举单独设计，而是通过 自定类型+const+iota 实现
 	var season Season = Summer
-	fmt.Printf("当前季节:%s (值%d)\n", season, int(season)) // 输出: 当前季节: Summer  %s输出字符串, %d输出十进制整数
+	fmt.Printf("当前季节:%s (值%d)\n", season, int(season)) // 输出: 当前季节: Summer (值1)  %s输出字符串, %d输出十进制整数
 	fmt.Printf("季节是否有效: %t\n", season.IsValid())
 
 	// 枚举字符串

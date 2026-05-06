@@ -173,5 +173,3 @@ func main() {
 		fmt.Println("i值：", i)
 	}
 }
-
-// label与goto

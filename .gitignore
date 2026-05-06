@@ -4,6 +4,7 @@
 pkg
 .smart-env
 .claude
+.claudian/sessions
 CLAUDE.md
 .mcp.json
 .obsidian/workspace.json

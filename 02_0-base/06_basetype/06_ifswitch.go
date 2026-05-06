@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"math/rand"
 	"os"
 	"runtime"
 	"strconv"
@@ -81,7 +80,8 @@ func main() {
 		fmt.Println("端口转换的值：", val)
 	}
 
-	// 这是测试 err 变量是否包含一个真正的错误（if err != nil）的习惯用法。如果确实存在错误，则会打印相应的错误信息然后通过 return 提前结束函数的执行。
+	// 这是测试 err 变量是否包含一个真正的错误（if err != nil）的习惯用法。
+	// 如果确实存在错误，则会打印相应的错误信息然后通过 return 提前结束函数的执行。
 	// 通过 os.Open 方法打开一个名为 name 的只读文件：
 	dir, _ := os.Getwd()
 	fmt.Println("pwd：", dir)
@@ -150,52 +150,6 @@ func main() {
 		fmt.Println("转换的值大于0")
 	default:
 		fmt.Println("值为0")
-	}
-
-	// 3.label标签通常与goto，break，continue进行使用。用于简化流程，if、for、switch 或 select 语句中，进行
-
-	// label与break配合使用
-	
-	// label配合goto实现跳转
-	num := 0
-	Loop:
-		if num < 5 {
-			fmt.Println(num)
-			num++
-			goto Loop // 跳转到loo标签，模拟循环效果
-		}
-
-	// 非法示例（跳过声明）
-	var aa int = 15
-	goto goLabel
-	// 不能跳过变量声明语句。如果跳转到变量声明之前，而该变量在跳转之后又被使用，编译器会报错。
-	cc := 20 // goto与label之间的内容都会被跳过，
-	fmt.Println(cc)
-	goLabel:
-		fmt.Println(aa+cc)
-
-
-	// 生成[0.0到1.0)的随机浮点数
-	flag := rand.Float64()
-	if flag >= 0.5 {
-		goto A
-		var val float64 = float64(a) + flag
-		fmt.Printf("flag:%f, val:%f", a, val)
-	} else {
-		goto B
-		var val float64 = float64(b) + flag
-		fmt.Printf("flag:%f, val:%f", b, val)
-	}
-
-A:
-	{
-		a := 10
-		fmt.Println("a", a)
-	}
-B:
-	{
-		b := 20
-		fmt.Println("b", b)
 	}
 }
 
