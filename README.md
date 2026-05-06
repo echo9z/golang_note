@@ -69,6 +69,8 @@ source ~/.bash_profile
 ``` bash
 # 查看go版本
 go version
+# 开启mod模式
+go env -w GO111MODULE=on
 
 # 查看go环境配置
 go env
@@ -3834,6 +3836,10 @@ A:
 }
 ```
 在实际应用中`goto`用的很少，跳来跳去的很降低代码可读性，性能消耗也是一个问题
+
+##### 非法示例（跳过声明）
+
+
 
 #### for循环
 在 Go 中，有仅有一种循环语句：`for`，Go 抛弃了`while`语句，`for`语句可以被当作`while`来使用。

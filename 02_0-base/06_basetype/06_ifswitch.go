@@ -66,7 +66,7 @@ func main() {
 	}
 
 	// if用于返回一个整数的绝对值
-	var Abs func(x int) int = func (x int) int {
+	var Abs func(x int) int = func(x int) int {
 		if x < 0 {
 			return -x
 		}
@@ -75,15 +75,17 @@ func main() {
 	fmt.Println(Abs(-15))
 
 	// if 可以包含一个初始化语句（如：给一个变量赋值）
-	if val, err := strconv.Atoi("8080"); err != nil{
+	if val, err := strconv.Atoi("8080"); err != nil {
 		fmt.Println("err for", err)
 	} else {
-		fmt.Println("端口转换的值：",val)
+		fmt.Println("端口转换的值：", val)
 	}
 
 	// 这是测试 err 变量是否包含一个真正的错误（if err != nil）的习惯用法。如果确实存在错误，则会打印相应的错误信息然后通过 return 提前结束函数的执行。
 	// 通过 os.Open 方法打开一个名为 name 的只读文件：
-	if file,err := os.Open(`c:\Users\11312\Desktop\golang_note\02_0-base\06_basetype\05_time.go`); err != nil {
+	dir, _ := os.Getwd()
+	fmt.Println("pwd：", dir)
+	if file, err := os.Open("02_0-base/06_basetype/05_time.go"); err != nil {
 		fmt.Println(err)
 		// return err 在 main() 函数中，main 不能有返回值，所以 return err 会导致编译错误。
 		return
@@ -92,7 +94,7 @@ func main() {
 	}
 
 	// 多返回值的函数
-	mySqrt := func (f float64) (v float64, b bool, err error) {
+	mySqrt := func(f float64) (v float64, b bool, err error) {
 		if f < 0 {
 			return 0, false, errors.New("传入值小于0")
 		}
@@ -101,7 +103,6 @@ func main() {
 	if v, b, _ := mySqrt(25.0); b {
 		fmt.Println("值的平方根：", v)
 	}
-
 
 	// 二。switch结构
 	chr := 'A'
@@ -133,25 +134,47 @@ func main() {
 	// 2.通过fallthrough关键字来继续执行相邻的下一个分支
 	i := 26
 	switch true {
-	case i > 10: fallthrough
+	case i > 10:
+		fallthrough
 	case i > 20:
 		fmt.Println("i数值", i)
 	}
-	
+
 	// 3.switch 语句条件语句中，包含一个初始化语句：
-	switch v, err :=strconv.Atoi("12"); true{
+	switch v, err := strconv.Atoi("12"); true {
 	case err != nil:
-    fmt.Println("转换错误:", err)
+		fmt.Println("转换错误:", err)
 	case v < 0:
 		fmt.Println("转换的值小于0")
 	case v > 0:
 		fmt.Println("转换的值大于0")
 	default:
-    fmt.Println("值为0")
+		fmt.Println("值为0")
 	}
 
-	// label标签通常与goto，break，continue进行使用
+	// 3.label标签通常与goto，break，continue进行使用。用于简化流程，if、for、switch 或 select 语句中，进行
+
+	// label与break配合使用
 	
+	// label配合goto实现跳转
+	num := 0
+	Loop:
+		if num < 5 {
+			fmt.Println(num)
+			num++
+			goto Loop // 跳转到loo标签，模拟循环效果
+		}
+
+	// 非法示例（跳过声明）
+	var aa int = 15
+	goto goLabel
+	// 不能跳过变量声明语句。如果跳转到变量声明之前，而该变量在跳转之后又被使用，编译器会报错。
+	cc := 20 // goto与label之间的内容都会被跳过，
+	fmt.Println(cc)
+	goLabel:
+		fmt.Println(aa+cc)
+
+
 	// 生成[0.0到1.0)的随机浮点数
 	flag := rand.Float64()
 	if flag >= 0.5 {
@@ -164,11 +187,13 @@ func main() {
 		fmt.Printf("flag:%f, val:%f", b, val)
 	}
 
-	A:{
+A:
+	{
 		a := 10
 		fmt.Println("a", a)
 	}
-	B:{
+B:
+	{
 		b := 20
 		fmt.Println("b", b)
 	}
