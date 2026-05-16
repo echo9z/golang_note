@@ -1884,29 +1884,156 @@ arr6 := [3]string{"hello", "gg", "ok"}
 fmt.Println(arr6) // [hello gg ok] 
 ```
 
+##### 数组访问
+```go
+arr7 := [5]int{54, 85, 68, 56, 8}
+// 第一个元素是 arr1[0]，第三个元素是 arr1[2]；总体来说索引 i 代表的元素是 arr1[i]，最后一个元素是 arr1[len(arr1)-1]。
+// 访问元素
+fmt.Println(arr7[2]) // 68
+// 修改元素
+arr7[0] = 100
+fmt.Println(arr7[0])
+// 最后一个元素
+fmt.Println("end",arr7[len(arr7)-1])
+```
+
 数组长度也是数组类型的一部分，所以`[5]int`和 `[10]int` 是属于不同类型的。Go 的数组是**值类型**，不是 C 语言那样“一个指向首元素的指针”。一个 `[5]int` 变量就是**连续 5 个 int 大小**的内存块，一个 `[10]int` 是**连续 10 个 int 大小**的内存块。
 
 数组的长度参与类型判定，不只是元素类型。
 
 ```go
-var a [5]int
-var b [10]int
+// [5]int和 [10]int 是属于不同类型的。
+var a1 [5]int = [5]int{0, 1, 2, 3, 4}  // 类型是 [5]int
+var b1 [10]int = [10]int{0: 10, 9: 90} // 类型是 [10]int
 
-a = b  // ❌ 编译错误：不能把 [10]int 赋给 [5]int
+// 在go中数组是值类型，一个 [5]int 变量就是连续 5 个 int 大小的内存块，一个 [10]int 是连续 10 个 int 大小的内存块。它们的尺寸根本不一样，在内存布局、复制开销上都完全不同。
+// 长度是类型的一部分，数组的大小在编译时就是固定的。当你把一个数组赋值给另一个变量，或者传给函数时，Go 会复制整个数组的所有元素。
+// a1 = b1 // 编译错误：cannot use a (type [5]int) as type [10]int in assignment
+fmt.Printf("a1: %d\nb1: %d\n", a1, b1)
 ```
 
 对比切片，切片的长度不参与类型：
-
+切片的类型只有`[]int`，长度不是类型的一部分。切片的类型不包含长度，所以无论长度是 5 还是 10 的切片，它们的类型都是`[]int`，可以自由地互相赋值、扩容，或者作为同一个函数的参数。
 ```go
-var s1 []int  // 长度不确定
-var s2 []int  // 长度不确定
-
-s1 = []int{1, 2, 3}
-s2 = []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
-s1 = s2  // ✅ 都是 []int 类型，没问题
+s1 := []int{1, 2, 3}
+s2 := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
+fmt.Printf("s1:%p val:%d \n",s1, s1) // s1:0xc0000182e8 val:[1 2 3] 
+fmt.Printf("s2:%p val:%d \n",s2, s2) // s2:0xc0000200a0 val:[1 2 3 4 5 6 7 8 9 10]
+ 
+s1 = s2 // 都是 []int 类型
+fmt.Printf("s1:%p val:%d \n",s1, s1) // s1:0xc0000200a0 val:[1 2 3 4 5 6 7 8 9 10] 
+fmt.Printf("s2:%p val:%d \n",s2, s2) // s2:0xc0000200a0 val:[1 2 3 4 5 6 7 8 9 10] 
 ```
 
-所以 `[5]int` 和 `[10]int` 的关系就像 `int` 和 `string` ——它们是完全不同的两个类型，不能互相赋值、不能互相比较、不能作为对方的函数参数。
+所以 `[5]int` 和 `[10]int` 就像 `int` 和 `string`，是完全不同的两个类型，不能互相赋值、不能互相比较、不能作为对方的函数参数。
+
+##### 多维数组
+###### 二维数组
+
+```go
+// 二维数组
+var arrR[2][3]int = [2][3]int{
+  {25, 15, 26},
+  {15, 35, 36},
+}
+fmt.Printf("[1][2]:%d\n",arrR[1][2])
+
+// 简短声明
+arrR2 := [2][3]int{
+  {25, 15, 26},
+  {15, 35, 36},
+}
+fmt.Printf("arrR2:%d\n",arrR2)
+
+// 自动推导
+arrR3 := [...][3]int{ // [...][...]int❌（只能最外层用...)
+  {25, 15, 26},
+  {15, 35, 36},
+}
+fmt.Printf("arrR3:%d\n",arrR3)
+
+// 内层不能用 ... 
+b1 := [...][3]int{{1,2,3},{4,5,6}}  // 外层可以
+c1 := [2][... ]int{{1,2},{3,4,5}}   // 内层不行
+
+// 读取多维数组元素
+fmt.Println(arrR3[1]) // [15 35 36]  第二行
+fmt.Println(arrR3[0][2]) // 26   第1行，第3个元素
+
+// 修改第二行，第一个元素
+arrR3[1][0] = 266
+fmt.Println("第二行元素", arrR3[1]) // 第二行元素 [266 35 36]
+
+// 遍历二维数组
+for i:=0; i<len(arrR3); i++ { // len(arrR3)先获取长度有几行
+  for j:=0; j<len(arrR3[i]); j++{ // len(arrR3[i])再获取每行有几个元素
+    fmt.Printf("arr[%d][%d]:%d \t",i,j,arrR3[i][j])
+  }
+  fmt.Println()
+}
+```
+
+###### 三维数组
+```go
+// [x][y][z]int：x个二维数组，每个二维数组中包含y个一维数组，每个一维长度z个
+arr3d := [2][2][4]int{
+  {
+    {1,2,3,4},
+    {5,6,7,8},
+  },
+  {
+    {10,20,30,40},
+    {50,60,70,80},
+  },
+}
+// 获取[1][0][3]:40
+fmt.Println("[1][0][3]:",arr3d[1][0][3])
+
+// 遍历三维数组 [2][2][4]int
+for i := 0; i < len(arr3d); i++ { // 先获x个二维数组
+  for j := 0; j < len(arr3d[i]); j++ { // 再获取每个二数组，有len(arr3d[i])个一维数组
+    for k := 0; k < len(arr3d[i][j]); k++ { // 最后每个一维数组长度len(arr3d[i][j])
+      // fmt.Println(len(arr3d[i][j]))
+      fmt.Printf("arr[%d][%d][%d]:%d \t", i, j, k, arr3d[i][j][k])
+    }
+  }
+}
+```
+ `[len(arr3d)] [len(arr3d[i])] [len(arr3d[i][j])] int`
+ - len(arr3d)：获len(arr3d)个二维数组长度
+ - len(arr3d[i])：每个二数组，有len(arr3d[i])个一维数组
+ - len(arr3d[i][j])：每个一维数组长度len(arr3d[i][j])
+
+#### 遍历数组
+##### 普通 for 遍历
+for loop基础遍历
+```go
+nums := [5]int{10, 20, 30, 40, 50}
+for i := 0; i < len(nums); i++ {
+  fmt.Printf("num[%d]:%d\n",i,nums[i])
+}
+```
+
+##### range 遍历
+range 遍历（Go 最常用）
+```go
+nums2 := [5]int{10, 20, 30, 40, 50}
+// 同时获取索引和值。idx为数组下标，val数组元素
+for idx, val := range nums2 {
+  fmt.Printf("num2[%d]:%d\n", idx, val)
+}
+
+// 只保留数组值，使用_空白标识符丢弃索引
+for _, val := range nums2 {
+  fmt.Printf("value:%d\n", val)
+}
+
+// 只保留索引idx
+for idx := range nums2 {
+  fmt.Printf("index:%d\n", idx)
+}
+```
+
 
 #### 切片
 

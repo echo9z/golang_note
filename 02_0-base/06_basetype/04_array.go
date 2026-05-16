@@ -37,7 +37,7 @@ func main() {
 	arr7[0] = 100
 	fmt.Println(arr7[0])
 	// 最后一个元素
-	fmt.Println("end",arr7[len(arr7)-1])
+	fmt.Println("end", arr7[len(arr7)-1])
 
 	// [5]int和 [10]int 是属于不同类型的。
 	var a1 [5]int = [5]int{0, 1, 2, 3, 4}  // 类型是 [5]int
@@ -51,19 +51,19 @@ func main() {
 	// 切片的类型只有 []int，长度不是类型的一部分。切片的类型不包含长度，所以无论长度是 5 还是 10 的切片，它们的类型都是 []int，可以自由地互相赋值、扩容，或者作为同一个函数的参数。
 	s1 := []int{1, 2, 3}
 	s2 := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
-	fmt.Printf("s1:%p val:%d \n",s1, s1) // s1:0xc0000182e8 val:[1 2 3] 
-	fmt.Printf("s2:%p val:%d \n",s2, s2) // s2:0xc0000200a0 val:[1 2 3 4 5 6 7 8 9 10] 
-	s1 = s2 // 都是 []int 类型
-	fmt.Printf("s1:%p val:%d \n",s1, s1) // s1:0xc0000200a0 val:[1 2 3 4 5 6 7 8 9 10] 
-	fmt.Printf("s2:%p val:%d \n",s2, s2) // s2:0xc0000200a0 val:[1 2 3 4 5 6 7 8 9 10] 
+	fmt.Printf("s1:%p val:%d \n", s1, s1) // s1:0xc0000182e8 val:[1 2 3]
+	fmt.Printf("s2:%p val:%d \n", s2, s2) // s2:0xc0000200a0 val:[1 2 3 4 5 6 7 8 9 10]
+	s1 = s2                               // 都是 []int 类型
+	fmt.Printf("s1:%p val:%d \n", s1, s1) // s1:0xc0000200a0 val:[1 2 3 4 5 6 7 8 9 10]
+	fmt.Printf("s2:%p val:%d \n", s2, s2) // s2:0xc0000200a0 val:[1 2 3 4 5 6 7 8 9 10]
 
 	// 数组指针声明
-	numP := [3]int{1,2,3}
+	numP := [3]int{1, 2, 3}
 
-	p := &numP // go中使用&获取一个变量的指针地址
-	fmt.Println(p) // p指针类型类型为：*[3]int
+	p := &numP           // go中使用&获取一个变量的指针地址
+	fmt.Println(p)       // p指针类型类型为：*[3]int
 	fmt.Println((*p)[0]) // *p 读写指针指向的值，获取数组中的第一个元素
-	fmt.Println(p[0]) // 简写
+	fmt.Println(p[0])    // 简写
 
 	// new 创建数组
 	p1 := new([3]int) // *[3]int，默认值[0,0,0]
@@ -71,34 +71,101 @@ func main() {
 	p1[0] = 10
 	p1[1] = 20
 	p1[2] = 30
-	fmt.Println(p1)  // &[10 20 30]
+	fmt.Println(p1) // &[10 20 30]
 	// new([3]int)           // → &[0, 0, 0]，只能得到零值
 	// &[3]int{10, 20, 30}  // → &[10, 20, 30]，声明时就能赋值
 
 	//二、多维数组
 	// 二维数组
-	var arrR[2][3]int = [2][3]int{
+	var arrR [2][3]int = [2][3]int{
 		{25, 15, 26},
 		{15, 35, 36},
 	}
-	fmt.Printf("[1][2]:%d\n",arrR[1][2])
+	fmt.Printf("[1][2]:%d\n", arrR[1][2])
 
 	// 简短声明
 	arrR2 := [2][3]int{
 		{25, 15, 26},
 		{15, 35, 36},
 	}
-	fmt.Printf("arrR2:%d\n",arrR2)
+	fmt.Printf("arrR2:%d\n", arrR2)
 
 	// 自动推导
 	arrR3 := [...][3]int{ // [...][...]int❌（只能最外层用...)
 		{25, 15, 26},
 		{15, 35, 36},
 	}
-	fmt.Printf("arrR3:%d\n",arrR3)
+	fmt.Printf("arrR3:%d\n", arrR3)
 
 	// 读取多维数组元素
-	fmt.Println(arrR3[1]) // [15 35 36]  第二行
+	fmt.Println(arrR3[1])    // [15 35 36]  第二行
 	fmt.Println(arrR3[0][2]) // 26   第1行，第3个元素
+
+	// 修改第二行，第一个元素
+	arrR3[1][0] = 266
+	fmt.Println("第二行元素", arrR3[1]) // 第二行元素 [266 35 36]
+
+	// 遍历二维数组
+	for i := 0; i < len(arrR3); i++ { // len(arrR3)先获取长度有几行
+		for j := 0; j < len(arrR3[i]); j++ { // len(arrR3[i])再获取每行有几个元素
+			fmt.Printf("arr[%d][%d]:%d \t", i, j, arrR3[i][j])
+		}
+		fmt.Println()
+	}
+
+	// 三维数组
+	// [x][y][z]int：x个二维数组，每个二维数组中包含y个一维数组，每个一维长度z个
+	arr3d := [2][2][4]int{
+		{
+			{1, 2, 3, 4},
+			{5, 6, 7, 8},
+		},
+		{
+			{10, 20, 30, 40},
+			{50, 60, 70, 80},
+		},
+	}
+	// 获取[1][0][3]:40
+	fmt.Println("[1][0][3]:", arr3d[1][0][3])
+	// 遍历三维数组 [2][2][4]int
+	for i := 0; i < len(arr3d); i++ { // 先获x个二维数组
+		for j := 0; j < len(arr3d[i]); j++ { // 再获取每个二数组，有len(arr3d[i])个一维数组
+			for k := 0; k < len(arr3d[i][j]); k++ { // 最后每个一维数组长度len(arr3d[i][j])
+				// fmt.Println(len(arr3d[i][j]))
+				fmt.Printf("arr[%d][%d][%d]:%d \t", i, j, k, arr3d[i][j][k])
+			}
+		}
+	}
+
+	// 三、遍历数组
+	iterateArr()
+}
+
+func iterateArr() {
+	// 1.普通for遍历（最基础）
+	nums := [5]int{10, 20, 30, 40, 50}
+	for i := 0; i < len(nums); i++ {
+		fmt.Printf("num[%d]:%d\n", i, nums[i])
+	}
+
+	// 2.range 遍历（Go 最常用）
+	nums2 := [5]int{10, 20, 30, 40, 50}
+	// 同时获取索引和值。idx为数组下标，val数组元素
+	for idx, val := range nums2 {
+		fmt.Printf("num2[%d]:%d\n", idx, val)
+	}
+
+	// 只保留数组值，使用_空白标识符丢弃索引
+	for _, val := range nums2 {
+		fmt.Printf("value:%d\n", val)
+	}
+
+	// 只保留索引idx
+	for idx := range nums2 {
+		fmt.Printf("index:%d\n", idx)
+	}
+
+	// 遍历时修改数组元素
+	// 使用
 
 }
