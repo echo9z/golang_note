@@ -166,6 +166,25 @@ func iterateArr() {
 	}
 
 	// 遍历时修改数组元素
-	// 使用
+	nums3 := [5]int{10, 20, 30, 40, 50}
+	// 使用普通 基础for 可以修改
+	for i := 0; i < len(nums3); i++ {
+		// 对每个元素都/10
+		nums3[i] /= 10
+		nums3[i] *= 2
+	}
+	fmt.Println(nums3) // [2 4 6 8 10]
+
+	// range 修改元素存在坑（重要）
+	nums4 := [5]int{10, 20, 30, 40, 50}
+	for _, val := range nums4 {
+		val /= 10 // 但不会修改原数组
+	}
+	fmt.Println(nums4) // [10 20 30 40 50] 通过range赋值val变量是元素副本，不是原元素。
+	// 通过数组index索引修改
+	for idx := range nums4 {
+		nums4[idx] /= 10 // 但不会修改原数组
+	}
+	fmt.Println(nums4) // [1 2 3 4 5]
 
 }
