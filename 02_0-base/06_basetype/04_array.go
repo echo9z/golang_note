@@ -1,6 +1,8 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+)
 
 func main() {
 	// 数组 固定长度、相同元素的集合，一旦声明长度不可改变
@@ -57,15 +59,21 @@ func main() {
 	fmt.Printf("s1:%p val:%d \n", s1, s1) // s1:0xc0000200a0 val:[1 2 3 4 5 6 7 8 9 10]
 	fmt.Printf("s2:%p val:%d \n", s2, s2) // s2:0xc0000200a0 val:[1 2 3 4 5 6 7 8 9 10]
 
-	// 数组指针声明
+	// 二、数组指针声明
+	// & — 取地址，&a 得到 a 的指针
+	// * — 解引用，*p 读写指针指向的值
 	numP := [3]int{1, 2, 3}
-
-	p := &numP           // go中使用&获取一个变量的指针地址
-	fmt.Println(p)       // p指针类型类型为：*[3]int
+  // 2.1.数组指针：指向数组的指针
+	p := &numP           // go中使用&获取一个变量的指针地址  p *[3]int   &符号：显式取地址
+	fmt.Println(p)       // p指针类型类型为：*[3]int  &[1 2 3]
+	fmt.Println(*p)       // 解引用地址 得到数组  [1 2 3]
 	fmt.Println((*p)[0]) // *p 读写指针指向的值，获取数组中的第一个元素
-	fmt.Println(p[0])    // 简写
+	fmt.Println(p[0])    // 简写 在 Go 中，不需要手动解引用（(*arrPtr)[0]），可以直接使用 arrPtr[0]
+	// 通过指针修改原数组
+  p[0] = 100  // 等价于 (*p)[0] = 100
+	fmt.Println(p[0])
 
-	// new 创建数组
+	// 2.2new 创建数组
 	p1 := new([3]int) // *[3]int，默认值[0,0,0]
 	// 实际开发中 new 用得很少，&T{...} 更常用，既能拿到指针又能初始化。
 	p1[0] = 10
@@ -75,7 +83,97 @@ func main() {
 	// new([3]int)           // → &[0, 0, 0]，只能得到零值
 	// &[3]int{10, 20, 30}  // → &[10, 20, 30]，声明时就能赋值
 
-	//二、多维数组
+	// 2.3数组指针可以当切片用
+	arrNum := [5]int{15,35,55,75,95}
+	arrP := &arrNum // 取地址，得到arrP指针  arrP类型：*[3]int
+
+	// 直接对指针切片，得到 []int
+	sliceP := arrP[1:4] //  直接对指针切片，得到 []int{35,55,75}切片[a,b)
+	fmt.Println(sliceP) // 指针切片[]int{35,55,75}
+
+	sliceP[0] = 40 // 修改切片会影响原数组
+	fmt.Println(arrNum) // [15 40 55 75 95]
+
+	// 2.4数组指针的使用场景
+	// 数组是值类型，传参数会复制整个数组，可以使用指针避免拷贝，避免大数组拷贝开销
+	// 数组很大时，传值会复制整个数组，传指针只复制一个地址（8字节）：
+	// 1e6 = 1 × 10⁶ = 1,000,000（一百万）。
+	// 在传递函数参数 p := &arrM，p类型*[1e6]int
+	var sumM func(p *[1e6]int) int = func(p *[1e6]int) int { // 通过指针解引用，得到数组地址，传指针，避免复制 100 万个 int
+		// fmt.Println(p) 会输出整个100万数组
+		total :=0
+		for _, v := range p {
+			total += v
+		}
+		return total
+	}
+	arrM := [1e6]int{}
+	arrM[0] = 10
+	arrM[99] = 20
+	fmt.Println("传指针，零拷贝", sumM(&arrM)) //  传地址，不复制整个数组，零拷贝 30
+	
+	// 2.4封装函数内修改原数组
+	// Go 数组是值类型，传入函数默认是拷贝，用指针才能修改原数组：
+	var double = func (p *[3]int)  {
+		for idx := range p {
+			(*p)[idx] *= 2 // 简写为p[idx]  *p解引用取得指针指向的值
+		}
+	}
+	arrM2 := [3]int{1,2,3}
+	double(&arrM2)
+	fmt.Println("arrM2",arrM2) // arrM2 [2 4 6]
+
+	// 对比函数不用数组指针
+	arrM3 := [3]int{1,2,3}
+	var doubleErr = func (p [3]int)  {
+		for idx := range p {
+			p[idx] *= 2 // 修改的是副本p，原数组不变
+		}
+		fmt.Println("副本p", p) // 副本p[2 4 6]
+	}
+	doubleErr(arrM3)
+	fmt.Println("arrM3", arrM3) // 原数组没有修改arrM3 [1 2 3]
+
+
+	// 2.指针数组：元素是指针的数组
+	a, b, c := 1, 2, 3
+	ptrArr:= [...]*int{&a, &b, &c} // &获取变量指针地址，类型 [3]*int
+	fmt.Println(ptrArr) // [0xc0000122a0 0xc0000122a8 0xc0000122b0]
+	fmt.Println(*ptrArr[0]) // 取第一个指针指向的值
+
+	// 通过 *解引用地址进行修改底层变量的值
+	*ptrArr[1] = 20
+	fmt.Println("b val change:",b) // b变量的值被改为: 20
+	
+	// 指针数组的使用场景
+	// 多个变量需要统一管理、批量处理
+	ptrArrFn := func ()  {
+		x, y, z := 10, 20, 30
+		// 将变量收集到一个指针*[T]数组中
+		ptrs := [...]*int{&x, &y, &z}
+		
+		// 循环批量修改变量
+		for _, p := range ptrs {
+			// 这里的p是复制的副本是指针指向的变量
+			*p = *p * 2 //简写 *p *= 2
+		}
+	}
+	ptrArrFn()
+
+  // 区分两个概念：
+	// *[3]int    // 数组指针 — 一个指针，指向一个数组
+	// [3]*int    // 指针数组 — 一个数组，里面存了3个指针
+	// 数组指针 *[3]int：
+	// p ──→ [10, 20, 30]
+	// 			一个指针指向整个数组
+
+	// 指针数组 [3]*int：
+	// [0xc01, 0xc02, 0xc03]
+	// 	↓       ↓       ↓
+	// 	a=1    b=2    c=3
+	// 	数组里存的是3个指针
+
+	//三、多维数组
 	// 二维数组
 	var arrR [2][3]int = [2][3]int{
 		{25, 15, 26},
@@ -137,7 +235,7 @@ func main() {
 		}
 	}
 
-	// 三、遍历数组
+	// 四、遍历数组
 	iterateArr()
 }
 
@@ -166,8 +264,8 @@ func iterateArr() {
 	}
 
 	// 遍历时修改数组元素
-	nums3 := [5]int{10, 20, 30, 40, 50}
 	// 使用普通 基础for 可以修改
+	nums3 := [5]int{10, 20, 30, 40, 50}
 	for i := 0; i < len(nums3); i++ {
 		// 对每个元素都/10
 		nums3[i] /= 10
@@ -181,6 +279,7 @@ func iterateArr() {
 		val /= 10 // 但不会修改原数组
 	}
 	fmt.Println(nums4) // [10 20 30 40 50] 通过range赋值val变量是元素副本，不是原元素。
+	// for range 的 value 是数组元素的副本，修改它不会影响原数组。要修改原数组，必须通过索引操作。
 	// 通过数组index索引修改
 	for idx := range nums4 {
 		nums4[idx] /= 10 // 但不会修改原数组
