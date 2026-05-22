@@ -63,14 +63,14 @@ func main() {
 	// & — 取地址，&a 得到 a 的指针
 	// * — 解引用，*p 读写指针指向的值
 	numP := [3]int{1, 2, 3}
-  // 2.1.数组指针：指向数组的指针
+	// 2.1.数组指针：指向数组的指针
 	p := &numP           // go中使用&获取一个变量的指针地址  p *[3]int   &符号：显式取地址
 	fmt.Println(p)       // p指针类型类型为：*[3]int  &[1 2 3]
-	fmt.Println(*p)       // 解引用地址 得到数组  [1 2 3]
+	fmt.Println(*p)      // 解引用地址 得到数组  [1 2 3]
 	fmt.Println((*p)[0]) // *p 读写指针指向的值，获取数组中的第一个元素
 	fmt.Println(p[0])    // 简写 在 Go 中，不需要手动解引用（(*arrPtr)[0]），可以直接使用 arrPtr[0]
 	// 通过指针修改原数组
-  p[0] = 100  // 等价于 (*p)[0] = 100
+	p[0] = 100 // 等价于 (*p)[0] = 100
 	fmt.Println(p[0])
 
 	// 2.2new 创建数组
@@ -84,24 +84,24 @@ func main() {
 	// &[3]int{10, 20, 30}  // → &[10, 20, 30]，声明时就能赋值
 
 	// 2.3数组指针可以当切片用
-	arrNum := [5]int{15,35,55,75,95}
+	arrNum := [5]int{15, 35, 55, 75, 95}
 	arrP := &arrNum // 取地址，得到arrP指针  arrP类型：*[3]int
 
 	// 直接对指针切片，得到 []int
 	sliceP := arrP[1:4] //  直接对指针切片，得到 []int{35,55,75}切片[a,b)
 	fmt.Println(sliceP) // 指针切片[]int{35,55,75}
 
-	sliceP[0] = 40 // 修改切片会影响原数组
+	sliceP[0] = 40      // 修改切片会影响原数组
 	fmt.Println(arrNum) // [15 40 55 75 95]
 
 	// 2.4数组指针的使用场景
-	// 数组是值类型，传参数会复制整个数组，可以使用指针避免拷贝，避免大数组拷贝开销
+	// 2.4.1数组是值类型，传参数会复制整个数组，可以使用指针避免拷贝，避免大数组拷贝开销
 	// 数组很大时，传值会复制整个数组，传指针只复制一个地址（8字节）：
 	// 1e6 = 1 × 10⁶ = 1,000,000（一百万）。
 	// 在传递函数参数 p := &arrM，p类型*[1e6]int
 	var sumM func(p *[1e6]int) int = func(p *[1e6]int) int { // 通过指针解引用，得到数组地址，传指针，避免复制 100 万个 int
 		// fmt.Println(p) 会输出整个100万数组
-		total :=0
+		total := 0
 		for _, v := range p {
 			total += v
 		}
@@ -111,21 +111,21 @@ func main() {
 	arrM[0] = 10
 	arrM[99] = 20
 	fmt.Println("传指针，零拷贝", sumM(&arrM)) //  传地址，不复制整个数组，零拷贝 30
-	
-	// 2.4封装函数内修改原数组
+
+	// 2.4.2封装函数内修改原数组
 	// Go 数组是值类型，传入函数默认是拷贝，用指针才能修改原数组：
-	var double = func (p *[3]int)  {
+	var double = func(p *[3]int) {
 		for idx := range p {
 			(*p)[idx] *= 2 // 简写为p[idx]  *p解引用取得指针指向的值
 		}
 	}
-	arrM2 := [3]int{1,2,3}
+	arrM2 := [3]int{1, 2, 3}
 	double(&arrM2)
-	fmt.Println("arrM2",arrM2) // arrM2 [2 4 6]
+	fmt.Println("arrM2", arrM2) // arrM2 [2 4 6]
 
 	// 对比函数不用数组指针
-	arrM3 := [3]int{1,2,3}
-	var doubleErr = func (p [3]int)  {
+	arrM3 := [3]int{1, 2, 3}
+	var doubleErr = func(p [3]int) {
 		for idx := range p {
 			p[idx] *= 2 // 修改的是副本p，原数组不变
 		}
@@ -134,24 +134,23 @@ func main() {
 	doubleErr(arrM3)
 	fmt.Println("arrM3", arrM3) // 原数组没有修改arrM3 [1 2 3]
 
-
-	// 2.指针数组：元素是指针的数组
+	// 3.指针数组：元素是指针的数组
 	a, b, c := 1, 2, 3
-	ptrArr:= [...]*int{&a, &b, &c} // &获取变量指针地址，类型 [3]*int
-	fmt.Println(ptrArr) // [0xc0000122a0 0xc0000122a8 0xc0000122b0]
-	fmt.Println(*ptrArr[0]) // 取第一个指针指向的值
+	ptrArr := [...]*int{&a, &b, &c} // &获取变量指针地址，类型 [3]*int
+	fmt.Println(ptrArr)             // [0xc0000122a0 0xc0000122a8 0xc0000122b0]
+	fmt.Println(*ptrArr[0])         // 取第一个指针指向的值
 
 	// 通过 *解引用地址进行修改底层变量的值
-	*ptrArr[1] = 20
-	fmt.Println("b val change:",b) // b变量的值被改为: 20
-	
-	// 指针数组的使用场景
+	*ptrArr[1] = 20                 // 修改 b 的地址里存的值
+	fmt.Println("b val change:", b) // b变量的值被改为: 20
+
+	// 3.1指针数组的使用场景
 	// 多个变量需要统一管理、批量处理
-	ptrArrFn := func ()  {
+	ptrArrFn := func() {
 		x, y, z := 10, 20, 30
 		// 将变量收集到一个指针*[T]数组中
 		ptrs := [...]*int{&x, &y, &z}
-		
+
 		// 循环批量修改变量
 		for _, p := range ptrs {
 			// 这里的p是复制的副本是指针指向的变量
@@ -160,7 +159,82 @@ func main() {
 	}
 	ptrArrFn()
 
-  // 区分两个概念：
+	// 3.2多个变量共享同一个数据
+	shareVar := func() {
+		type Config struct{ Value int }    // 创建一个结构体
+		var cfg Config = Config{Value: 10} // 引用cfg指针实例和这个value值
+
+		// 多处持有同一个 Config 的指针
+		var handlers [3]*Config = [...]*Config{&cfg, &cfg, &cfg}
+		// 修改源数据，所有引用cfg.value同步更新
+		cfg.Value = 200
+
+		for i, v := range handlers {
+			fmt.Printf("h[%d].Value=%d\n", i, v.Value)
+		}
+	}
+	shareVar()
+	// 3.3 当数组中很多元素可能是 nil 时，从而判断哪些是有值的对象。
+	// 使用指针数组可以节省大量内存。
+	scores := [5]int{0, 98, 0, 76, 0} // 哪些是真的 0 分？哪些是没填？
+	fmt.Println(scores)
+
+	// 指针数组：nil 表示未设置
+	ptrScores := [5]*int{}
+	ss1, ss2 := 0, 98
+	ptrScores[1] = &ss1 // 明确填了 0 分
+	ptrScores[3] = &ss2 // 填了 98 分
+	// ptrScores[2] 是 nil，表示未填写
+
+	for idx, ptrS := range ptrScores {
+		if ptrS == nil {
+			fmt.Printf("第%d题没有填写\n", idx+1)
+		} else {
+			fmt.Printf("第%d题：%d 分\n", idx+1, *ptrS)
+		}
+	}
+
+	// 3.4结构体对象引用
+	type User struct {
+		Name string
+		Age  int
+	}
+
+	// 指针数组存储多个用户的引用（可能来自不同数据源）
+	printUsers := func(users [3]*User) {
+		for _, u := range users {
+			if u != nil {
+				fmt.Printf("%s (%d)\n", u.Name, u.Age)
+			}
+		}
+	}
+	var users [3]*User
+	u1 := User{"Alice", 30}
+	u2 := User{"Bob", 25}
+	users[0] = &u1
+	users[1] = &u2
+	// users[2] 为 nil
+	printUsers(users)
+
+	// // 3.5接口指针数组实现多态
+	// type Animal interface { Speak(s string) string } // 声明接口
+	// // 创建结构体
+	// type Dog struct { Name string }
+	// type Cat struct { Name string }
+
+	// // 每个结构体都实现了接口中方法
+	// func (d *Dog) Speak(s string) string{ return d.Name+":"+s }
+	// func (c *Cat) Speak(s string) string{ return c.Name+":"+s}
+
+	// d1 := &Dog{Name:"柯基"}
+	// c1 := &Cat{Name:"喵喵"}
+	// animals := [2]Animal{d1, c1}
+	// for _, a := range animals {
+	// 	fmt.Println(a.Speak("嗨嗨"))
+	// }
+	
+
+	// 区分两个概念：
 	// *[3]int    // 数组指针 — 一个指针，指向一个数组
 	// [3]*int    // 指针数组 — 一个数组，里面存了3个指针
 	// 数组指针 *[3]int：

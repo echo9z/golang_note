@@ -1980,7 +1980,7 @@ sliceP[0] = 40 // 修改切片会影响原数组
 fmt.Println(arrNum) // [15 40 55 75 95]
 ```
 
-数组指针的使用场景
+**数组指针的使用场景**
 - **避免大数组的值拷贝：** 在 Go 中，数组是值类型（Value Type）。如果你把一个很大的数组传递给函数，它会完整复制一份数据，这不仅消耗内存还会影响性能。传递数组指针可以避免这种拷贝。
 - **在函数内修改原数组：** 因为传递的是指针，所以在函数内部修改数组的元素，会直接反映到原数组上。
 - **特定底层库或加密库：** 例如在 crypto/sha256 中，哈希结果通常是一个 `[32]byte` 的固定大小数组，很多相关函数的参数会接收 `*[32]byte`。
@@ -2046,12 +2046,132 @@ fmt.Println(*ptrArr[0]) // 取第一个指针指向的值
 fmt.Println("b val:",b) // b val: 20
 ```
 
-
 - **管理一组独立变量的引用：** 当你有几个零散的变量或结构体实例，想要把它们聚拢在一个数组里进行遍历或统一管理，但又不想拷贝它们的数据时。
 - **表示稀疏数据（Sparse Data）：** 如果数组中并非每个位置都有值，使用指针数组，没有值的位置可以设为 nil，从而节省内存。
 - **与 C 语言交互 (Cgo)：** C 语言中经常有指针数组的概念（如 `char *argv[]`），在 Go 中调用这类 C 代码时，需要用到指针数组。
 
+**多个变量需要统一管理、批量处理**
+```go
+// 3.1多个变量需要统一管理、批量处理
+ptrArrFn := func() {
+   x, y, z := 10, 20, 30
+   // 将变量收集到一个指针*[T]数组中
+   ptrs := [...]*int{&x, &y, &z}
 
+   // 循环批量修改变量
+   for _, p := range ptrs {
+      // 这里的p是复制的副本是指针指向的变量
+      *p = *p * 2 //简写 *p *= 2
+   }
+}
+ptrArrFn()
+
+// 3.2多个变量共享同一个数据
+shareVar := func() {
+   type Config struct{ Value int }    // 创建一个结构体
+   var cfg Config = Config{Value: 10} // 引用cfg指针实例和这个value值
+
+   // 多处持有同一个 Config 的指针
+   var handlers [3]*Config = [...]*Config{&cfg, &cfg, &cfg}
+   // 修改源数据，所有引用cfg.value同步更新
+   cfg.Value = 200
+
+   for i, v := range handlers {
+      fmt.Printf("h[%d].Value=%d\n", i, v.Value)
+   }
+}
+shareVar()
+```
+
+**表示稀疏数据，只指向需要的部分**
+```go
+// 3.3 当数组中很多元素可能是 nil 时，从而判断哪些是有值的对象。
+// 使用指针数组可以节省大量内存。
+scores := [5]int{0, 98, 0, 76, 0} // 哪些是真的 0 分？哪些是没填？
+fmt.Println(scores)
+
+// 指针数组：nil 表示未设置
+ptrScores := [5]*int{}
+ss1, ss2 := 0, 98
+ptrScores[1] = &ss1 // 明确填了 0 分
+ptrScores[3] = &ss2 // 填了 98 分
+// ptrScores[2] 是 nil，表示未填写
+
+for idx, ptrS := range ptrScores {
+   if ptrS == nil {
+      fmt.Printf("第%d题没有填写\n", idx+1)
+   } else {
+      fmt.Printf("第%d题：%d 分\n", idx+1, *ptrS)
+   }
+}
+
+// 3.4结构体对象引用
+type User struct {
+   Name string
+   Age  int
+}
+
+// 指针数组存储多个用户的引用（可能来自不同数据源）
+printUsers := func(users [3]*User) {
+   for _, u := range users {
+      if u != nil {
+         fmt.Printf("%s (%d)\n", u.Name, u.Age)
+      }
+   }
+}
+
+var users [3]*User
+u1 := User{"Alice", 30}
+u2 := User{"Bob", 25}
+users[0] = &u1
+users[1] = &u2
+// users[2] 为 nil
+printUsers(users) // Alice (30)  Bob (25)
+```
+
+**接口指针数组实现多态**
+
+```go
+// 声明接口
+type Animal interface{ Speak(s string) string }
+
+// 结构体
+type Dog struct{ Name string }
+type Cat struct{ Name string }
+
+// 实现接口方法（接收者为指针）
+func (d *Dog) Speak(s string) string { return d.Name + "：" + s }
+func (c *Cat) Speak(s string) string { return c.Name + "：" + s }
+
+func main() {
+    // 写法1：先创建值，再取地址
+    // dog := Dog{Name: "旺财"}  // dog 是 Dog 类型（值）
+    // d1 := &dog              // d1 是 *Dog 类型（指针）
+    
+    // 写法2：创建时直接取地址（简洁写法）
+    d1 := &Dog{Name: "旺财"}  //  d1 直接就是 *Dog 类型（指针）
+    c1 := &Cat{Name: "小黑"}
+
+    // 接口指针数组：元素是 Animal 接口类型，存储的是实现了该接口的指针
+    var animals [2]Animal = [2]Animal{d1, c1}
+
+    // 多态：统一调用，各自表现不同行为
+    for _, a := range animals {
+        fmt.Println(a.Speak("hello"))
+    }
+    // 旺财：hello
+    // 小黑：hello
+
+    // 推荐用切片，更灵活
+    pets := []Animal{d1, c1, &Cat{Name: "喵喵"}}
+    for _, p := range pets {
+        fmt.Println(p.Speak("嗨"))
+    }
+    // 旺财：嗨
+    // 小黑：嗨
+    // 咪咪：嗨
+}
+```
 
 - \*[3]int：数组指针 — 一个指针，指向一个数组
 ```go
