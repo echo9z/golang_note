@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"time"
 )
 
 func main() {
@@ -232,7 +233,6 @@ func main() {
 	// for _, a := range animals {
 	// 	fmt.Println(a.Speak("嗨嗨"))
 	// }
-	
 
 	// 区分两个概念：
 	// *[3]int    // 数组指针 — 一个指针，指向一个数组
@@ -308,9 +308,112 @@ func main() {
 			}
 		}
 	}
+	fmt.Println()
+	// 四、数组元素类型为任意类型
+	// any即interface{} 作为元素类型(any是Go 1.18+引入）
+	// var a [3]interface{}  // 旧写法
+	// var b [3]any          // 新写法，推荐
+	anyArr := [5]any{1, true, "hellp", 3.14, []int{1, 2, 3}}
+	for i, v := range anyArr {
+		fmt.Printf("anyArr[%d]=%v, 类型：%T\n", i, v, v)
+	}
+	// anyArr[0]=1, 类型：int
+	// anyArr[1]=true, 类型：bool
+	// anyArr[2]=hellp, 类型：string
+	// anyArr[3]=3.14, 类型：float64
+	// anyArr[4]=[1 2 3], 类型：[]int
 
-	// 四、遍历数组
+	// 使用时，类型断言取回具体的类型
+	arrT := [3]any{51, true, "ok"}
+
+	// 安全断言推荐，用 ok 避免 panic
+	if num, ok := arrT[0].(int); ok { // 判断是否为int类型
+		fmt.Println(num + 10) // 61
+	}
+
+	// 不安全断言（类型不匹配会 panic）
+	status := arrT[2].(string) //不对会 panic 不可恢复的致命错误
+	fmt.Println(status)
+	// 类型不匹配 → panic
+	// n := arrT[1].(int) ❌
+	// fmt.Println(n) panic: interface conversion: interface {} is bool, not int
+
+	// 使用type switch处理多种类型
+	process := func(arr [6]any) {
+		for idx, v := range arr { // 遍历每个元素，通过v.(type)
+			switch val := v.(type) { // num, ok := element.(type)
+			case int:
+				fmt.Printf("arr[%d] 整数(%T): %d\n", idx, val, val)
+			case string:
+				fmt.Printf("arr[%d] 字符串(%T): %d, 长度%d\n", idx, val, val, len(val))
+			case bool:
+				fmt.Printf("arr[%d] 布尔(%T): %v\n", idx, val, val)
+			case float64:
+				fmt.Printf("arr[%d] 浮点(%T): %v\n", idx, val, val)
+			case []int:
+				fmt.Printf("arr[%d] int切片(%T): %v\n", idx, val, val)
+			default:
+				fmt.Printf("arr[%d] 未知类型(%T): %v\n", idx, val, val)
+			}
+		}
+	}
+	anyP := [6]any{1, true, "hello", 3.14, []int{1, 2, 3}, time.Now()}
+	process(anyP)
+
+	// 元素类型有约束范围，用泛型比 any 更安全
+	var arrF [5]int = [5]int{1, 2, 3, 4, 5}
+	fmt.Println(sumArr(arrF))
+	
+	var arrF2 [5]float64 = [5]float64{1.1, 2.2, 3.3, 4.4, 5.5}
+	fmt.Println(sumArr(arrF2))
+	// sumArr([5]bool{false,true,false,true,false}) // ❌泛型已经约束参数类型
+
+	// 混合类型配置
+	type ConfigItem struct {
+		Key string
+		Value any // 值为任意值
+	}
+
+	configs := [5]ConfigItem{
+		{"host",     "localhost"},
+		{"port",     8080},
+		{"debug",    true},
+		{"timeout",  30.5},
+		{"tags",     []string{"prod", "v2"}},
+	}
+
+	for _, cfgItem := range configs {
+		switch val := cfgItem.Value.(type) {
+		case string:
+			fmt.Printf("%-10s = %q\n", cfgItem.Key, val)
+		case int:
+			fmt.Printf("%-10s = %d\n", cfgItem.Key, val)
+		case bool:
+			fmt.Printf("%-10s = %v\n", cfgItem.Key, val)
+		case float64:
+			fmt.Printf("%-10s = %.1f\n", cfgItem.Key, val)
+		case []string:
+			fmt.Printf("%-10s = %v\n", cfgItem.Key, val)
+		}
+	}
+
+	
+	// 五、遍历数组 ￼￼[1](https://www.runoob.com/go/go-fmt-sprintf.html)
 	iterateArr()
+}
+
+// 如果元素类型有约束范围，用泛型比 any 更安全
+type Number interface {
+	int | int64 | float32 | float64
+}
+
+// 泛型函数的参数作为接收类型，Number
+func sumArr[T Number](arr [5]T) T {
+	var total T
+	for _, v := range arr {
+		total += v
+	}
+	return total
 }
 
 func iterateArr() {

@@ -1330,8 +1330,9 @@ eg：
 %q	该值对应的单引号括起来的go语法字符字面值，必要时会采用安全的转义表示
 %x	表示为十六进制，使用a-f
 %X	表示为十六进制，使用A-F
-%U	表示为Unicode格式：U+1234，等价于"U+%04X"  
+%U	表示为Unicode格式：U+1234，等价于"U+%04X"
 ```
+
 示例：
 ```go
 // 格式化输出  
@@ -1371,6 +1372,22 @@ func Format() {
     fmt.Printf("%+v\n", user) // 值的默认格式输出{Name:tom Age:15} kv形式的值  
     fmt.Printf("%#v\n", user) // 值的默认格式输出base.User{Name:"tom", Age:15}  
 }
+```
+
+```go
+%-10s 是一个常用的字符串格式化占位符，用于控制字符串的对齐方式和占用宽度。 [[1]
+```
+它的具体含义如下：
+- **`%`**：格式化动词的起始标志。
+- **`-`**：表示**左对齐**（默认不加 `-` 时是右对齐）。
+- **`10`**：表示**最小宽度**。如果字符串长度不足 10，会在右侧自动补空格；如果超过 10，则不受限制，会原样输出。
+- **`s`**：表示输出的数据类型为**字符串**。
+```go
+name := "Go" // %-10s：左对齐，宽度为10，不足补空格
+fmt.Printf("|%-10s|\n", name) // 对比：默认的 %10s（右对齐） 
+fmt.Printf("|%10s|\n", name)
+// |Go |
+// | Go|
 ```
 
 ### 数据类型
@@ -2130,7 +2147,6 @@ printUsers(users) // Alice (30)  Bob (25)
 ```
 
 **接口指针数组实现多态**
-
 ```go
 // 声明接口
 type Animal interface{ Speak(s string) string }
@@ -2265,6 +2281,161 @@ for i := 0; i < len(arr3d); i++ { // 先获x个二维数组
  - len(arr3d)：获len(arr3d)个二维数组长度
  - len(arr3d[i])：每个二数组，有len(arr3d[i])个一维数组
  - len(arr3d[i][j])：每个一维数组长度len(arr3d[i][j])
+
+##### 数组元素类型为任意类型
+any即interface{} 作为元素类型。(any是Go 1.18+引入）
+```go
+var a [3]interface{} // 旧写法
+var b [3]any // 新写法，推荐
+
+anyArr := [5]any{1, true, "hellp", 3.14, []int{1, 2, 3}}
+for i, v := range anyArr {
+    fmt.Printf("anyArr[%d]=%v, 类型：%T\n", i, v, v)
+}
+// anyArr[0]=1, 类型：int
+// anyArr[1]=true, 类型：bool
+// anyArr[2]=hellp, 类型：string
+// anyArr[3]=3.14, 类型：float64
+// anyArr[4]=[1 2 3], 类型：[]int
+```
+
+使用时，类型断言取回具体的类型
+```go
+arrT := [3]any{51, true, "ok"}
+
+// 安全断言推荐，用 ok 判断避免 panic致命错误
+if num, ok := arrT[0].(int); ok { // 判断是否为int类型
+    fmt.Println(num + 10) // 61
+}
+
+// 不安全断言（类型不匹配会 panic）
+status := arrT[2].(string) //不对会 panic 不可恢复的致命错误
+fmt.Println(status)
+
+// 类型不匹配 → panic
+// n := arrT[1].(int) ❌
+// fmt.Println(n) panic: interface conversion: interface {} is bool, not int
+```
+
+Go 的 **type switch**（类型断言分支）语法。`switch val := v.(type)` 会根据 `v` 的**实际动态类型**来匹配 `case` 分支。
+
+工作流程：
+1. `v` 是一个 `interface{}` 类型的变量
+2. `val := v.(type)` 是特殊语法（注意这里 `type` 是关键字，不是类型名），它会将 `v` 的动态类型与各 `case` 比较
+3. 匹配到的 `case` 中，`val` 的类型就是 `case` 指定的类型，可以直接当该类型使用，无需再断言
+
+```go
+var v interface{} = 42  // 实际存储的是 int
+
+switch val := v.(type) {
+case int:
+    // val 是 int 类型，可以直接做 int 运算
+    fmt.Println(val + 1)  // 43
+case string:
+    // val 是 string 类型
+    fmt.Println(len(val))
+case float64:
+    // val 是 float64 类型
+    fmt.Println(val * 2)
+default:
+    // 其他类型
+    fmt.Printf("未知类型: %T\n", val)
+}
+
+// 使用type switch处理多种类型
+process := func(arr [6]any) {
+    for idx, v := range arr { // 遍历每个元素，通过v.(type)
+        switch val := v.(type) { // num, ok := element.(type)
+        case int:
+            fmt.Printf("arr[%d] 整数(%T): %d\n", idx, val, val)
+        case string:
+            fmt.Printf("arr[%d] 字符串(%T): %d, 长度%d\n", idx, val, val, len(val))
+        case bool:
+            fmt.Printf("arr[%d] 布尔(%T): %v\n", idx, val, val)
+        case float64:
+            fmt.Printf("arr[%d] 浮点(%T): %v\n", idx, val, val)
+        case []int:
+            fmt.Printf("arr[%d] int切片(%T): %v\n", idx, val, val)
+        default:
+            fmt.Printf("arr[%d] 未知类型(%T): %v\n", idx, val, val)
+        }
+    }
+}
+anyP := [6]any{1, true, "hello", 3.14, []int{1, 2, 3}, time.Now()}
+process(anyP)
+```
+
+注意：
+- `case int` 匹配的是**具体类型**，不是值
+- 匹配成功后 `val` 自动具备该类型，**不需要再写 `val.(int)`**
+
+##### 泛型数组
+对元素类型有约束范围，用泛型比 any 更安全
+```go
+// 如果元素类型有约束范围，用泛型比 any 更安全
+type Number interface {
+    int | int64 | float32 | float64
+}
+
+// 泛型函数的参数作为接收类型，Number
+func sumArr[T Number](arr [5]T) T {
+    var total T
+    for _, v := range arr {
+        total += v
+    }
+    return total
+}
+
+func main(){
+    // 元素类型有约束范围
+    var arrF [5]int = [5]int{1, 2, 3, 4, 5}
+    fmt.Println(sumArr(arrF))
+
+    var arrF2 [5]float64 = [5]float64{1.1, 2.2, 3.3, 4.4, 5.5}
+    fmt.Println(sumArr(arrF2))
+    // sumArr([5]bool{false,true,false,true,false}) // ❌泛型已经约束参数类型
+}
+```
+
+配置文件列表
+```go
+// 混合类型配置
+type ConfigItem struct {
+    Key string
+    Value any // 值为任意值
+}
+
+configs := [5]ConfigItem{
+    {"host",     "localhost"},
+    {"port",     8080},
+    {"debug",    true},
+    {"timeout",  30.5},
+    {"tags",     []string{"prod", "v2"}},
+}
+
+func main(){
+    for _, cfgItem := range configs {
+        switch val := cfgItem.Value.(type) {
+        case string:
+            fmt.Printf("%-10s = %q\n", cfgItem.Key, val)
+        case int:
+            fmt.Printf("%-10s = %d\n", cfgItem.Key, val)
+        case bool:
+            fmt.Printf("%-10s = %v\n", cfgItem.Key, val)
+        case float64:
+            fmt.Printf("%-10s = %.1f\n", cfgItem.Key, val)
+        case []string:
+            fmt.Printf("%-10s = %v\n", cfgItem.Key, val)
+        }
+    }
+}
+// host       = "localhost"
+// port       = 8080
+// debug      = true
+// timeout    = 30.5
+// tags       = [prod v2]
+```
+
 
 #### 遍历数组
 ##### 普通 for 遍历
