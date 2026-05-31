@@ -42,6 +42,11 @@ func main() {
 	// 最后一个元素
 	fmt.Println("end", arr7[len(arr7)-1])
 
+	// 使用len(arr) 访问数组元素的数量
+	fmt.Printf("数组长度:%d\n",len(arr7)) // 数组长度:5
+	// 内置函数cap来访问数组容量，数组的容量等于数组长度，容量对于切片使用的。
+	fmt.Printf("数组容量等于数组长度:%d\n", cap(arr7)) // 数组容量等于数组长度:5
+
 	// [5]int和 [10]int 是属于不同类型的。
 	var a1 [5]int = [5]int{0, 1, 2, 3, 4}  // 类型是 [5]int
 	var b1 [10]int = [10]int{0: 10, 9: 90} // 类型是 [10]int
@@ -83,6 +88,29 @@ func main() {
 	fmt.Println(p1) // &[10 20 30]
 	// new([3]int)           // → &[0, 0, 0]，只能得到零值
 	// &[3]int{10, 20, 30}  // → &[10, 20, 30]，声明时就能赋值
+
+	// 这里修改arr2中第3个元素，为什么不会影响arr1中的元素，*arr1不是解引用读取指针指向的值？
+	var arr11 *[5]int = new([5]int) // arr11 是 *[5]int，指向 [0,0,0,0,0]
+	var arr22 [5]int
+	arr22 = *arr11 // 解引用得到 [0,0,0,0,0]，然后数组赋值给 arr22
+	arr22[2] = 100 // 修改的是副本 arr22，不影响 arr12 指向的数组
+
+	fmt.Printf("arr11 指向的地址: %p\n", arr11)      // arr11 指向的地址: 0xc00001e390
+	fmt.Printf("arr22 自己的地址: %p\n", &arr22)     // arr22 自己的地址: 0xc00001e3c0
+
+	// arr := 10 
+	// p := &arr 通过&取地址值
+	// *p 读写指针指向的值为10
+	// 想让 arr2 的修改影响 arr1，arr2也必须是指针
+	arr33 := new([5]int) // *[5]int数组指针，arr33存放数值指针地址值
+	arr44 := arr33 // 将arr3指针地址赋值给arr44（*[5]int数组指针），两个变量指向同一个数组
+
+	fmt.Printf("arr33的地址: %p\n", &arr33) // arr33的地址: 0xc000050048
+	fmt.Printf("arr44的地址: %p\n", &arr33) // arr44的地址: 0xc000050048
+
+	arr44[2] = 100  // 修改会影响 arr33
+	fmt.Println(*arr44) // 通过*解引读写指针指向的值
+
 
 	// 2.3数组指针可以当切片用
 	arrNum := [5]int{15, 35, 55, 75, 95}
@@ -345,7 +373,7 @@ func main() {
 			case int:
 				fmt.Printf("arr[%d] 整数(%T): %d\n", idx, val, val)
 			case string:
-				fmt.Printf("arr[%d] 字符串(%T): %d, 长度%d\n", idx, val, val, len(val))
+				fmt.Printf("arr[%d] 字符串(%T): %s, 长度%d\n", idx, val, val, len(val))
 			case bool:
 				fmt.Printf("arr[%d] 布尔(%T): %v\n", idx, val, val)
 			case float64:

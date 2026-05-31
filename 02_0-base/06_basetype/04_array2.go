@@ -14,6 +14,7 @@ func (d *Dog) Speak(s string) string { return d.Name + "：" + s }
 func (c *Cat) Speak(s string) string { return c.Name + "：" + s }
 
 func main() {
+	// 通过接口指针实现多态
 	// 写法1：先创建值，再取地址
 	// dog := Dog{Name: "旺财"}  // dog 是 Dog 类型（值）
 	// d1 := &dog              // d1 是 *Dog 类型（指针）

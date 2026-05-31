@@ -1926,6 +1926,16 @@ fmt.Println(arr7[0])
 fmt.Println("end",arr7[len(arr7)-1])
 ```
 
+使用`len(arr)` 访问数组元素的数量
+```go
+fmt.Printf("数组长度:%d\n",len(arr7)) // 数组长度:5
+```
+
+内置函数`cap(arr)`来访问数组容量，数组的容量等于数组长度，容量对于切片使用的。
+```go
+fmt.Printf("数组容量等于数组长度:%d\n", cap(arr7)) // 数组容量等于数组长度:5
+```
+
 数组长度也是数组类型的一部分，所以`[5]int`和 `[10]int` 是属于不同类型的。Go 的数组是**值类型**，不是 C 语言那样“一个指向首元素的指针”。一个 `[5]int` 变量就是**连续 5 个 int 大小**的内存块，一个 `[10]int` 是**连续 10 个 int 大小**的内存块。
 
 数组的长度参与类型判定，不只是元素类型。
@@ -1959,20 +1969,22 @@ fmt.Printf("s2:%p val:%d \n",s2, s2) // s2:0xc0000200a0 val:[1 2 3 4 5 6 7 8 9 1
 ##### 数组指针
 **定义：** 一个**指针**，它指向一个完整的数组。  
 **语法：** \*[N]T （例如 \*[5]int，表示一个指向拥有 5 个 int 元素的数组的指针）。
+
+1.数组指针：指向数组的指针
 ```go
-p := &numP    // go中使用&获取一个变量的指针地址  p *[3]int   &符号：显式取地址
+numP := [3]int{1, 2, 3}
+p := &numP           // go中使用&获取一个变量的指针地址  p *[3]int   &符号：显式取地址
 fmt.Println(p)       // p指针类型类型为：*[3]int  &[1 2 3]
-fmt.Println(*p)       // 解引用地址 得到数组  [1 2 3]
+fmt.Println(*p)      // 解引用地址 得到数组  [1 2 3]
 fmt.Println((*p)[0]) // *p 读写指针指向的值，获取数组中的第一个元素
-// 在 Go 中，不需要手动解引用（(*arrPtr)[0]），可以直接使用 arrPtr[0]
-fmt.Println(p[0])    // 简写
+fmt.Println(p[0])    // 简写 在 Go 中，不需要手动解引用（(*arrPtr)[0]），可以直接使用 arrPtr[0]
 
 // 通过指针修改原数组
-p[0] = 100  // 等价于 (*p)[0] = 100
+p[0] = 100 // 等价于 (*p)[0] = 100
 fmt.Println(p[0])
 ```
 
-2.new 函数创建数组，返回指针（`*T`）
+2.new 函数创建数组指针，返回指针（`*T`）
 ```go
 p1 := new([3]int) // *[3]int，默认值[0,0,0]
 // 实际开发中 new 用得很少，&T{...} 更常用，既能拿到指针又能初始化。
@@ -1982,6 +1994,34 @@ p1[2] = 30
 fmt.Println(p1) // &[10 20 30]
 // new([3]int)           // → &[0, 0, 0]，只能得到零值
 // &[3]int{10, 20, 30}  // → &[10, 20, 30]，声明时就能赋值
+```
+
+这里修改arr2中第3个元素，为什么不会影响arr1中的元素，\*arr1不是解引用读取指针指向的值？
+```go
+var arr11 *[5]int = new([5]int) // arr11 是 *[5]int，指向 [0,0,0,0,0]
+var arr22 [5]int
+arr22 = *arr11 // 解引用得到 [0,0,0,0,0]，然后数组赋值给 arr22
+arr22[2] = 100 // 修改的是副本 arr22，不影响 arr12 指向的数组
+
+fmt.Printf("arr11 指向的地址: %p\n", arr11)      // arr11 指向的地址: 0xc00001e390
+fmt.Printf("arr22 自己的地址: %p\n", &arr22)     // arr22 自己的地址: 0xc00001e3c0
+```
+`arr2 := *arr1` 等价于 `arr2 := 拷贝一份值(*arr1指向的数组)`。Go 中数组是值类型，赋值就是整组复制。
+
+如果想让 `arr2` 的修改影响 `arr1`，`arr2` 也必须是**指针**：
+```go
+// arr := 10 
+// p := &arr 通过&取地址值
+// *p 读写指针指向的值为10
+// 想让 arr2 的修改影响 arr1，arr2也必须是指针
+arr33 := new([5]int) // *[5]int数组指针，arr33存放数值指针地址值
+arr44 := arr33 // 将arr3指针地址赋值给arr44（*[5]int数组指针），两个变量指向同一个数组
+
+fmt.Printf("arr33的地址: %p\n", &arr33) // arr33的地址: 0xc000050048
+fmt.Printf("arr44的地址: %p\n", &arr33) // arr44的地址: 0xc000050048
+
+arr44[2] = 100  // 修改会影响 arr33
+fmt.Println(*arr44) // 通过*解引读写指针指向的值
 ```
 
 3.数组指针可以当切片用
@@ -2047,7 +2087,6 @@ var doubleErr = func (p [3]int)  {
 doubleErr(arrM3)
 fmt.Println("arrM3", arrM3) // 原数组没有修改arrM3 [1 2 3]
 ```
-
 
 ##### 指针数组 
 **定义：** 这是一个**数组**，数组里面的每一个元素都是一个指针。  
@@ -2189,10 +2228,11 @@ func main() {
 }
 ```
 
+数组指针与指针数组区分：
 - \*[3]int：数组指针 — 一个指针，指向一个数组
 ```go
 数组指针 *[3]int：
-p ──→ [10, 20, 30]
+ptr ──→ [10, 20, 30]
       一个指针指向整个数组      
 ```
 
@@ -2349,7 +2389,7 @@ process := func(arr [6]any) {
         case int:
             fmt.Printf("arr[%d] 整数(%T): %d\n", idx, val, val)
         case string:
-            fmt.Printf("arr[%d] 字符串(%T): %d, 长度%d\n", idx, val, val, len(val))
+            fmt.Printf("arr[%d] 字符串(%T): %s, 长度%d\n", idx, val, val, len(val))
         case bool:
             fmt.Printf("arr[%d] 布尔(%T): %v\n", idx, val, val)
         case float64:
@@ -2436,9 +2476,14 @@ func main(){
 // tags       = [prod v2]
 ```
 
+使用建议：
+- 能用泛型解决 → 优先用泛型（编译期安全）
+- 类型完全不定 → 用 `any + type switch`
+- 避免滥用 any → any 会丢失类型信息，增加运行时出错风险
+`any` 是临时选择，不是常规选择。能在编译期确定类型约束，就用泛型；只有真正需要混合任意类型时，才用 `any`
 
-#### 遍历数组
-##### 普通 for 遍历
+##### 遍历数组
+###### 普通 for 遍历
 for loop基础遍历
 ```go
 nums := [5]int{10, 20, 30, 40, 50}
@@ -2447,7 +2492,7 @@ for i := 0; i < len(nums); i++ {
 }
 ```
 
-##### range 遍历
+###### range 遍历
 range 遍历（Go 最常用）
 ```go
 nums2 := [5]int{10, 20, 30, 40, 50}
@@ -2468,7 +2513,7 @@ for idx := range nums2 {
 ```
 - range 遍历会复制元素值， `val` 是临时变量
 
-##### 遍历时修改数组元素
+###### 遍历时修改数组元素
 使用普通 `for` 进行修改
 ```go
 nums3 := [5]int{10, 20, 30, 40, 50}
@@ -2498,6 +2543,354 @@ fmt.Println(nums4) // [1 2 3 4 5]
 ```
 
 #### 切片
+切片（slice）是对数组一个连续片段的引用（该数组我们称之为相关数组，通常是匿名的），所以切片是一个引用类型。这个片段可以是整个数组，或者是由起始和终止索引标识的一些项的子集。比如数组`arr := [5]int{1,2,3,4,5}`，由这个数组`arr[start,end]`的子集，切割的区间为**左闭右开**（即`arr[start, end)`）。
+可以理解为**动态数组的视图**。它不存储数据本身，而是指向底层数组的一段连续内存。
+
+##### 切割数组
+切割数组返回切片 `arr[start:end]`，分割区域左闭右开，切割完后返回切片类型，前面说的只是对数组一个连续片段的引用。
+
+```go
+arr := [5]int{1,2,3,4,5}
+
+/**
+    arr[:] // 子切片范围[0,5) -> [1 2 3 4 5]
+    arr[1:] // 子切片范围[1,5) -> [2 3 4 5]
+    arr[:5] // 子切片范围[0,5) -> [1 2 3 4 5]
+    arr[2:3] // 子切片范围[2,3) -> [3]
+    arr[1:3] // 子切片范围[1,3) -> [2 3]
+*/
+var slice1 []int = arr[1:3] // 子切片范围[1～3) 2至3个元素
+fmt.Printf("arr：%v 类型:%T\n",arr, arr) // arr：[1 2 3 4 5] 类型:[5]int
+fmt.Println("slice1:",slice1, "类型:",reflect.TypeOf(slice1)) // slice1: [2 3] 类型: []int。这里通过reflect反射回去变量类型
+
+// 访问切片中引用的元素
+fmt.Println(slice1[0]) // 2
+```
+
+想要将数组转换为切片，直接 `arr[:]` 不带索引取值范围转换为切片
+```go
+arr2 := [5]int{1,2,3,4,5}
+slice2 := arr2[:] // len(arr2) == 5，cap(arr2) == 5
+```
+
+转换后的切片和数组指向的是同一个内存，当修改切片中元素会影响原数组的元素变化
+```go
+slice2[1] = 20
+fmt.Printf("array:%v\n", arr2) // array:[1 20 3 4 5] 第二个元素被修改20
+fmt.Printf("slice:%v\n", slice2) // slice:[1 20 3 4 5]
+```
+
+若想对原数组不受影响，使用go1.21 引入的slices.Clone()标准库，用于创建切片的浅拷贝
+```go
+arr3 := [5]int{1,2,3,4,5}
+// slices.Clone返回一个独立新切片
+slice3 := slices.Clone(arr3[:]) // 克隆arr3[0:5]的切片，返回独立切片
+slice3[0] = 100
+fmt.Printf("array:%v\n", arr3) // array:[1 2 3 4 5]
+fmt.Printf("slice:%v\n", slice3) // slice:[100 2 3 4 5]
+```
+
+`slices.Clone`等价于在go1.21之前版本通过make+copy，实现数组转化切片，在通过 copy函数是切片深拷贝
+```go
+// make([]T, len, cap)：首先分配一段新的底层数组内存。通过指定长度为 len(originSlice)，确保了拷贝的目标切片拥有足够的空间来容纳所有元素。
+slice4 := make([]int, len(arr3)) // make函数创建一个[]int切片长度与arr3一样
+// func copy(dst, src []Type) int
+// copy 内置函数将源切片中的元素复制到目标切片中。 
+// （作为一种特殊情况，它还将字节从字符串复制到字节切片。）源和目标可能重叠。 
+// Copy 返回复制的元素数量，该数量将是 len(src) 和 len(dst) 中的最小值。
+copy(slice4, arr3[:])
+slice4[4] = 500
+fmt.Printf("array:%v\n", arr3) // array:[1 2 3 4 5]
+fmt.Printf("slice:%v\n", slice4) // slice:[100 2 3 4 5]
+```
+
+##### 浅拷贝概念
+基本类型，通过浅拷贝的切片完全独立的。
+```go
+a := []int{1,2,3}
+b := slices.Clone(a)
+b[0] = 10
+fmt.Printf("a:%v, b:%v\n",a,b) // a:[1 2 3], b:[10 2 3] 不影响原切片
+```
+引用类型 切片中是（指针/切片/map）- 只复制了引用，底层对象仍共享
+```go
+type User struct {
+    Scores []int
+}
+
+var user1 User = User{
+    Scores: []int{100,98,85},
+}
+var user2 User = User{
+    Scores: []int{140,98,85},
+}
+// User引用切片
+Users := []User{user1, user2}
+// 通过Clone进行支队第一层了拷贝
+CloneUser := slices.Clone(Users)
+
+// 修改CloneUser中切片第一个元素，不影响Users对象切片
+CloneUser[0] = User{
+    Scores: []int{60,60,60},
+}
+fmt.Printf("users%v\n", Users)  // users[{[100 98 85]} {[140 98 85]}]
+fmt.Printf("CloneUser%v\n", CloneUser) // CloneUser[{[60 60 60]} {[140 98 85]}]
+
+// 但我对CloneUser[1]中的属性Scores，切片第三个元素进行修改150分，就会影响原切片，切片中Scores还是共享的
+CloneUser[1].Scores[2] = 150
+fmt.Printf("users%v\n", Users) // users[{[100 98 85]} {[140 98 150]}]  150就是被影响了
+fmt.Printf("CloneUser%v\n", CloneUser) // CloneUser[{[60 60 60]} {[140 98 150]}]
+
+// 需要要深拷贝要自己递归 clone
+for idx := range Users {
+    // 将CloneUser对象切片中Scores切片，也进行拷贝，从而达到scores切片为独立的内存
+    CloneUser[idx].Scores = slices.Clone(Users[idx].Scores)
+}
+
+// 通过对scores切片属性进行深拷贝处理，再次对Scores切片第三个元素进行修改120分，就不会影响原切片
+CloneUser[1].Scores[2] = 120
+fmt.Printf("users%v\n", Users)  // users[{[100 98 85]} {[140 98 150]}] 150没有被影响修改
+fmt.Printf("CloneUser%v\n", CloneUser) // CloneUser[{[100 98 85]} {[140 98 120]}]
+```
+
+##### 切片底层结构
+```go
+// go/src/runtime/slice.go
+type slice struct {  
+	array unsafe.Pointer // *T 指针，指向底层数组的指针
+	len int // 长度，切片当前包含的元素个数
+	cap int // 容量，从切片的开始位置到底层数组末尾的元素个数
+}
+```
+
+切片在内存中由三个字段组成：
+- `ptr` — 指向底层数组的指针
+- `len` — 当前元素数量
+- `cap` — 从指针位置到底层数组末尾的容量
+
+[切片](http://golang.org/doc/effective_go.html#slices)是对数组某一部分的引用。在内存中，它包含三个部分，包含指向第一个元素的指针、切片的长度和容量。
+![[slice1.png]]
+
+**长度len**
+上图中创建`x:=[]int{2,3,5,7,11}`切片，**长度是索引操作的上限**，意思是当你用下标去访问切片中的某一个具体元素（比如 `x[i]`）时，索引值 `i` 必须小于长度 `len(x)`。
+如果 `i` 大于或等于 `len(x)`，即使它没有超过容量 `cap(x)`，程序也会立刻崩溃。、
+
+**核心规则**
+对于切片 `x`，执行索引访问 `x[i]` 时必须满足：  
+`0 <= i < len(x)` （注意：是**严格小于**长度，因为索引从 0 开始计数）
+
+长度为 2，容量为 5 的切片。
+```go
+x := make([]int, 2, 5) 
+// 此时：len(x) = 2, cap(x) = 5
+// 内存里其实有 5 个格子：[0, 0, 0, 0, 0]
+// 但对 x 来说，只有前 2 个格子是合法的可见区域：[【0】, 【0】, 0, 0, 0]
+
+// 🟢合法的索引访问（小于长度）
+fmt.Println(x[0]) // 正常：输出 0 
+fmt.Println(x[1]) // 正常：输出 0
+
+// ❌崩溃的索引访问（等于或大于长度）
+fmt.Println(x[2]) // 报错！panic: runtime error: index out of range [2] with length 2
+```
+
+**容量cap**
+**容量是切片操作的上限**，意思是当你对一个现有切片 `x` 进行切片操作 `y := x[i:j]` 时，右边界 `j` 最大只能等于 `cap(x)`，而不能超过它。
+
+比如之前图中`y := x[1:3]`，对`x := []int{2, 3, 5, 7, 11}`切片进行切片再重组，长度为2，j=3 小于x切片容量cap(5)，y切片容量`0 <= i:1 <= j:3 <= 5`，容量为从指针位置到底层数组末尾`x[1]`到索引`x[4]`，1到4，即容量为4。
+
+`x := []int{2, 3, 5, 7, 11}` 拆解一下：
+1. 此时切片 `x` 的状态
+- **元素**：`[2, 3, 5, 7, 11]`
+- **长度 `len(x)`**：`5`
+- **容量 `cap(x)`**：`5`
+
+2. 对`x`切片操作 `y := x[1:3]`，在这行代码中， `i = 1`，`j = 3`。
+- 此时的 `j` 是 **`3`**。
+- 当前切片的长度 `len(x)` 是 **`5`**。
+- 因为 `3 < 5`，所以在这个具体的例子里，**`j`（3）并没有超过当前x切片的长度（5）**。是一个非常标准的、普通的切片截取操作。
+
+3. 什么情况下 `j` 才会“超过当前切片长度”
+- `x[1:6]`（此时 `j = 6`）`j`（6）确实大于`len(x)`的长度（5）
+- 但由于j = 6同时也大于了`cap(x)`容量（5），这超出了容量的上限，程序会直接报错崩溃（`panic`）。
+ 
+什么情况`j` 超过了当前x切片的长度 `len(x)`，只要它没有超过容量 `cap(x)`，这个切片操作就是合法的。（这里的合法是必须切片的容量必须大于它的长度（`cap(x) > len(x)`）。）
+
+对一个大切片进行截取，故意让**容量大于长度**。例如：
+```go
+// 创建一个长度为 3，容量为 5 的切片
+x := []int{2, 3, 5, 0, 0}[:3] 
+// 先底层创建一个长度为5切片，再对此切片进行切片重组。此时：x 的内容是 [2, 3, 5]
+// len(x) = 3
+// cap(x) = 5 (后面还隐藏了两个 0)
+
+// 现在执行切片操作：
+y := x[1:5] 
+// 这里的 j 是 5。5大于 x切片的长度3。5>3
+// j大于 len(x) 的长度 3（这就叫“j 超过了当前切片的长度”）。
+// 但它小于等于容量 5，所以完全合法！y 成功把后面隐藏的 0 也圈进来了。
+```
+
+**核心规则**
+对于切片 `x`，执行 `x[i:j]` 时必须满足：  `0 <= i <= j <= cap(x)`
+
+如果 `j > cap(x)`，Go 编译器或运行时就会直接报错：`panic: runtime error: slice bounds out of range`。
+
+长度为 3，容量为 5 的切片。
+```go
+x := make([]int, 3, 5) 
+// 此时：len(x) = 3, cap(x) = 5
+// 内存里其实有5个格子：[0, 0, 0, 0, 0]
+// 但对 x 来说，只有前 3 个格子是合法的可见区域：[【0】,【0】,【0】, 0, 0]
+```
+
+🟢 合法的索引访问（小于长度）
+```go
+fmt.Println(x[0]) // 正常：输出 0
+fmt.Println(x[1]) // 正常：输出 0
+```
+
+❌ 崩溃的索引访问（等于或大于长度）
+```go
+fmt.Println(x[3]) 
+// 报错！panic: runtime error: index out of range [3] with length 3
+```
+![717](./go.assets/img/go_slice_memory_layout.svg)
+##### 创建切片
+1.字面量初始化切片
+```go
+s1 := []int{1,2,3} // 长度和容量都为3
+s2 := []string{"a", "b"} // 长度和容量都为2
+fmt.Printf("slice1:%v(%T), slice2:%v(%T)\n",s1,s1,s2,s2) 
+// slice1:[1 2 3]([]int), slice2:[a b]([]string)
+```
+
+2.使用make函数创建切片
+
+```go
+func make(t Type, size ...IntegerType) Type
+
+make(type, length, capacity) // 仅适用于 slice
+make(type, initialCapacity)  // 适用于 map 和 channel
+```
+make参数：
+- type：必须是 slice、map 或 channel 类型。
+- length（仅对 slice 有效）：
+	切片的初始长度（元素数量）。
+    必须指定，否则编译报错。
+- capacity（可选，仅对 slice 有效）：
+	切片的容量（底层数组的大小）。
+	若未指定，默认与 length 相等。
+
+initialCapacity（对 map 和 channel 有效）：
+	map：预分配的哈希表桶数（可选，若未指定则按需动态分配）。
+	channel：通道的缓冲区大小（可选，若未指定则为无缓冲通道）。
+
+make 内置函数分配并初始化 slice、map 或 chan（仅）类型的对象。与 new函数 一样，第一个参数是类型，而不是值。与 new函数 不同，make 的返回类型与其传入参数的类型相同，而不是指向new函数传入函数参数的指针类型。
+
+```go
+make([]T, len)       // size[0] = len，cap = len
+make([]T, len, cap)  // size[0] = len，size[1] = cap
+
+// 1.一个参数les和cap相等
+s3 := make([]int, 5) // 切片长度和容量都为5
+fmt.Printf("%v\n", s3)
+fmt.Printf("len:%d, cap:%d\n", len(s3), cap(s3)) // len:5, cap:5
+
+// 2.两个参数：指定len和cap大小
+s4 := make([]string, 2, 5) // len2, cap5   内存中["","",""，""，""]，只有前两个索引位置合法可访问
+fmt.Printf("%v\n", s4)
+fmt.Printf("len:%d, cap:%d\n", len(s4), cap(s4)) // len:2, cap:5
+```
+
+`make([]string, 2, 5)` 的内存布局**不是 nil**，剩余的3个位置是**空字符串 `""`**
+```go
+s := make([]string, 2, 5)
+
+底层数组 (cap=5):
+┌──────┬──────┬──────┬──────┬──────┐
+│  ""  │  ""  │  ""  │  ""  │  ""  │
+│ [0]  │ [1]  │ [2]  │ [3]  │ [4]  │
+└──────┴──────┴──────┴──────┴──────┘
+         ↑ len=2 ↑
+	    可访问 │  不可访问（但已分配）
+
+slice header:
+┌──────────────┐
+│ Data ──────────→ 底层数组首地址
+│ Len  = 2     │
+│ Cap  = 5     │
+└──────────────┘
+```
+
+3.通过append()向预分配的切片追加元素
+```go
+func append(slice []Type, elems ...Type) []Type
+- slice：目标切片
+- elems：可变参数，向目标切片添加1个或多个元素
+返回值，新的 slice（可能指向新的底层数组）
+```
+Append 内置函数的作用是将元素添加到切片的末尾。如果内存容量足够，则会重新分配切片的空间以容纳新添加的元素；如果内存不足，则会创建一个新的数组来存储这些元素。最后，Append 会返回更新后的切片。
+因此，通常需要将 Append 的结果存储在一个变量中，这个变量就应该是保存切片本身的那个变量。
+
+```go
+s4 := make([]string, 2, 5)
+for i := 0; i < 5; i++ {
+    s4 = append(s4, strconv.Itoa(i)+"a")
+}
+fmt.Printf("s4:%v\n",s4) // s4:[  0a 1a 2a 3a 4a]
+```
+
+追加单个或多个元素
+```go
+// 追加单个元素
+a1 := []int{1,2}
+a1 = append(a1, 3)
+fmt.Println(a1) // [1 2 3]
+
+// 追加多个元素
+a1 = append(a1, 4,5,6)
+fmt.Println(a1) // [1 2 3 4 5 6]
+```
+
+将一个切片追加到另一个切片中
+```go
+b1 := []int{7,8,9}
+// 用...把b切片展开为可变参数
+a1 = append(a1, b1...)
+fmt.Println(a1) // [1 2 3 4 5 6 7 8 9]
+```
+
+追加字符串到`[]byte`
+```go
+var buf []byte
+buf = append(buf, "hello"...) // 将hello分单个字符 buf==hello 
+var str []string
+str = append(str, "hello")
+fmt.Printf("字节%s 字符串切片%s",buf, str) // 字节hello 字符串[hello]
+```
+appen
+```go
+cap 剩余空间足够：
+┌───────────────────────────────┐
+│  1  2  3  _  _  _  │  len=3, cap=6
+│           ↑                   │
+│         append(4)             │
+│  1  2  3  4  _  _  │  len=4, cap=6
+│          共用原底层数组          │
+└───────────────────────────────┘
+
+cap 剩余空间不够（扩容）：
+┌───────────────┐
+│  1  2  3  4   │  len=4, cap=4
+└───────────────┘
+        ↓ append(5)
+┌───────────────────────────────┐
+│  1  2  3  4  5  _  _  _  │  len=5, cap=8（新数组）
+└───────────────────────────────┘
+
+```
+
 
 #### 字符
 Golang 中没有专门的`char`字符类型，如果要存储单个字符(字母)，一般使用 `byte` 来保存，且使用单引号包裹。
