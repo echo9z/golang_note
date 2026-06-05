@@ -363,16 +363,52 @@ func main()  {
   // copy 版本（安全，O(len(smallSlice))）
 	// 先初始化一个切片长度为 len(bigslice) - n的长度
 	newSlice := make([]int, len(sBigSlice) - n3)
-	copy(newSlice, sBigSlice[n:]) // 将sBigSlice-n的截取长度的切片内容复制给新切片
+	copy(newSlice, sBigSlice[n3:]) // 将sBigSlice的从n3处截取切片,截取内容复制给新切片
 
 	sBigSlice = newSlice  // 原sBigSlice指向新数组 旧的 80KB 底层数组没有任何引用了，GC 可以回收
 	/*
 		旧底层数组（80KB）             新底层数组（79984B）
 	┌──┬──┬──┬── ... ──┐            ┌──┬──┬── ... ──┐
-	│x │x │v │  ... │v │  copy →    │v │v │  ... │v │
+	│x │x │v │   ...│v │  copy →    │v │v │   ...│v │
 	└──┴──┴──┴── ... ──┘            └──┴──┴── ... ──┘
 		没有引用了，等待 GC                  ↑
 																		sBigSlice 指向这里
 	*/
+
+	// 删除中间元素 第i个元素 最常用的
+	ss3 := []int{1,2,3,4,5,6,7,8}
+	n4 := 2
+	// 通过append方式实现拼接将元素删除
+	// ss[:n] = [1,2]   ss3[n+1] = [5,6,7,8]
+	ss3 = append(ss3[:n4], ss3[n4+1:]...) // ss3[n+1:]... 将ss3[3:]展开运算，变成切片的多个元素，追加到新的ss3中
+	fmt.Printf("%v\n", ss3)
+
+	// 不保序（用尾部元素覆盖）
+	ss5 := []string{"A", "B", "C", "D", "E"}
+	// 删除第二个元素b，想让b元素索引位置等于ss5切片末尾最后一个元素
+	n5 := 1
+	ss5[n5] = ss5[len(ss5)-1]  // B替换为E
+	ss5 = ss5[:len(ss5)-1] // ["A", "B", "C", "D"] "E" 将最后一个E元素截掉
+	fmt.Println(ss5) // 输出: [A E C D] (顺序变了，但 "B" 被成功删除了)
+	
+	// 通过slices标准库的delete函数
+	ss4 := []string{"apple", "banana", "cherry", "date"}
+	slices.Delete(ss4, 1, 2) // 删除第二个元素，Delete(目标切片,起始idx,结束idx)  左闭右开 [start, end)
+	fmt.Printf("%v\n", ss4) // [apple cherry date ]
+
+	// 批量删除（filter 模式）
+	ss6 := []int{1, 2, 3, 4, 5, 6}
+	// 删除所有偶数，逆向思维找奇数
+  j := 0
+	for _, v := range ss6 {
+		if v %2 != 0 { // 当元素取余部位0,为奇数
+			ss6[j] = v // 将为奇数从索引0开始
+			j++ // 记录奇数索引也是个数
+		}
+	}
+	// ss6 [1, 3, 5, 4, 5, 6] j为2，最后截取ss6最有的j索引处位置  
+	ss6 = ss6[:j]
+	fmt.Println(ss6) // [1 3 5]
+
 
 }
