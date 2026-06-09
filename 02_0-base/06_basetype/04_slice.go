@@ -156,6 +156,13 @@ func main()  {
 	emptySli2 := []int{}       // 同样非nil空切片
 	fmt.Printf("nilSlice:%v, emp1:%v, emp2:%v\n", nilSlice, emptySli,emptySli2) // nilSlice:[], emp1:[], emp2:[]
 
+	// 通过new函数创建切片，返回的是切片指针
+	pSlice := new([]int{1,2,3}) // 返回类型指针类型 *int
+	fmt.Printf("val:%p %v (%T)\n", pSlice, *pSlice, pSlice) // val:0x1decbcc9c468  [1 2 3] (*[]int)
+	fmt.Println((*pSlice)[1]) // 2 
+	// 这里注意 切片指针 (*pSlice)[1] 不能简写为 pSlice[1]，必须先*解引用得到 []int，再下标访问
+	
+
 	// 3.通过append()向预分配的切片追加元素
 	// func append(slice []Type, elems ...Type) []Type
 	// 	slice：目标切片
@@ -294,8 +301,14 @@ func main()  {
 																											预留 1 格
 	*/
 
-	// go切片没有内置 delete，所有删除本质都是拼接或覆盖，根据删除位置分三种情况：
-	// 删除尾部元素
+	// 删除切片中元素
+	// 1.通过slices标准库的delete函数 （推荐）1.21之前
+	ss4 := []string{"apple", "banana", "cherry", "date"}
+	slices.Delete(ss4, 1, 2) // 删除第二个元素，Delete(目标切片,起始idx,结束idx)  左闭右开 [start, end)
+	fmt.Printf("%v\n", ss4) // [apple cherry date ]
+
+	// 2.所有删除本质都是拼接或覆盖，根据删除位置分三种情况：
+	// 2.1.删除尾部元素
 	ss1 := []int{1,2,3,4,5}
 	fmt.Printf("prt：%p\n", &ss1)
 	// 删除尾部1个元素
@@ -325,7 +338,7 @@ func main()  {
 	两次修改到印地址完全一样，0x26d82c07c540
   */
 
-	// 删除头部元素
+	// 2.2删除头部元素
 	ss2 := []int{6,7,8,9,10,11}
 	// 删除第一个元素，idx：0
 	ss2 = ss2[1:] // 1:end [7 8 9 10 11]
@@ -334,17 +347,9 @@ func main()  {
 	ss2 = ss2[n1:] // 索引从3开始，第4个元素开始
 	fmt.Printf("拼接后到达删除效果：%v\n",ss2) // 拼接后到达删除效果：[10 11]
 	fmt.Printf("len:%d, cap:%d\n", len(ss2), cap(ss2)) // len:2, cap:2
-	// 同样只移动指针，O(1)。但注意底层数组头部的内存不会释放，如果原切片很大，考虑用 copy 版本。
-	// 比如s := make([]int, 10000)   
-	// s := s[2:] 删除前两个
-	// 底层数组（80KB，无法被 GC）
-	// ┌──┬──┬──┬──┬──┬── ... ──┐
-	// │x │x │  │  │  │   ...│  │
-	// └──┴──┴──┴──┴──┴── ... ──┘
-  //    ↑
-  //    ptr 移到这里，前两格永远悬空。但整块 80KB 内存都被底层数组占着，GC 无法回收
-	
-	// 只移动指针，O(1)。但要注意底层数组头部的内存不会释放，如果原切片很大，考虑用 copy 版本。
+	// 这种“只移动指针”的方式丢弃元素，复杂度O(1)。但要注意底层数组头部的内存不会释放，如果原切片很大，考虑用 copy 版本。
+
+	// 2.3 copy 版本
 	// 比如 sBigSlice 底层有一个超大的数组，想跳过前 n 个元素
 	sBigSlice := make([]int, 10000)   // 底层数组 10000 个元素，占 80KB
 	n3 := 2
@@ -375,7 +380,7 @@ func main()  {
 																		sBigSlice 指向这里
 	*/
 
-	// 删除中间元素 第i个元素 最常用的
+	// 2.3删除中间元素 第i个元素 最常用的
 	ss3 := []int{1,2,3,4,5,6,7,8}
 	n4 := 2
 	// 通过append方式实现拼接将元素删除
@@ -383,7 +388,7 @@ func main()  {
 	ss3 = append(ss3[:n4], ss3[n4+1:]...) // ss3[n+1:]... 将ss3[3:]展开运算，变成切片的多个元素，追加到新的ss3中
 	fmt.Printf("%v\n", ss3)
 
-	// 不保序（用尾部元素覆盖）
+	// 2.4不保序（用尾部元素覆盖）
 	ss5 := []string{"A", "B", "C", "D", "E"}
 	// 删除第二个元素b，想让b元素索引位置等于ss5切片末尾最后一个元素
 	n5 := 1
@@ -391,12 +396,12 @@ func main()  {
 	ss5 = ss5[:len(ss5)-1] // ["A", "B", "C", "D"] "E" 将最后一个E元素截掉
 	fmt.Println(ss5) // 输出: [A E C D] (顺序变了，但 "B" 被成功删除了)
 	
-	// 通过slices标准库的delete函数
-	ss4 := []string{"apple", "banana", "cherry", "date"}
-	slices.Delete(ss4, 1, 2) // 删除第二个元素，Delete(目标切片,起始idx,结束idx)  左闭右开 [start, end)
-	fmt.Printf("%v\n", ss4) // [apple cherry date ]
+	// 2.5删除所有元素
+	ssAll := []string{"A", "B", "C", "D", "E"}
+	ssAll = ssAll[:0]
+	fmt.Printf("删除所有元素:%v\n",ssAll) // 删除所有元素:[]
 
-	// 批量删除（filter 模式）
+	// 2.6批量删除（filter 模式）
 	ss6 := []int{1, 2, 3, 4, 5, 6}
 	// 删除所有偶数，逆向思维找奇数
   j := 0
@@ -410,5 +415,145 @@ func main()  {
 	ss6 = ss6[:j]
 	fmt.Println(ss6) // [1 3 5]
 
+	// 2.7对象切片删除时，要注意内存泄漏
+	type Node struct{ data []byte }
+
+	nn1 := Node{ []byte{1,2} }
+	nn2 := Node{ []byte{3,4} }
+	nn3 := Node{ []byte{5,6} }
+
+	nodes := []*Node{ &nn1, &nn2, &nn3}
+	i := 1 // 删除第二个元素
+
+	// 通过appen方式，底层数组索引idx=2对象切片，仍然引用旧对象
+	// 使用copy方式处理，避免底层数组最后一个元素任然被引用。
+	// s = append(s[:i], s[i+1:]...) ❌
+	fmt.Println(nodes,nodes[i:],nodes[i+1:]) // [&nn1,&nn2,&nn3]  [&nn2,&nn3] [&nn3] 
+
+	// dst切片nodes[i:]=[&nn2,&nn3]
+	// src切片nodes[i+1]=[&nn3] 
+	// cope(dst,src) => 得到[&nn3,&nn3] ✅
+	copy(nodes[i:], nodes[i+1:])    // step1：从dst[1:]即从dst切片第二个元素开始复制，将src切片内容复制到dst中，索引从i开始
+	fmt.Println(nodes) // 此时nodes为[&nn1,&nn3,&nn3]
+	nodes[len(nodes)-1] = nil       // step2：清除尾部重复引用
+	nodes = nodes[:len(nodes)-1]    // step3：缩短 len
+	// nodes[len(nodes)-1] = nil
+	// nodes = append(nodes[:n6], nodes[n6+1:]...) 这么些nodes中第三个元素是保存的
+	fmt.Printf("%v\n", nodes) // [&nn1,&nn3]
+
+	// copy函数用于两个切片直接复制元素
+	/*
+	func copy(dst, src []T) int
+	dst:目标切片
+	src:源切片
+	返回实际复制的元素个数。将src中的元素复制st目标切片中，返回复制元素的个数
+	*/
+	src := []int{10, 20, 30, 40, 50}
+	// 一、标准复制
+	// 1.dst目标切片有足够的长度 dst >= src ->全部复制
+	dst1 := make([]int, len(src))
+	total := copy(dst1, src) // 复制5个
+	fmt.Printf("dst:%v, copy total:%d\n", dst1, total) // dst:[10 20 30 40 50], copy total:5
+
+	// 2.dst目标切片没有足够的长度 dst < src ->只复制 dst 长度
+	dst2 := make([]int, 2)
+	total = copy(dst2, src) // 2
+	fmt.Printf("dst:%v, copy total:%d\n", dst2, total) // dst:[10 20], copy total:2
+
+	// 3. dst 长度 > src 长度 → 复制完后，dst 多余部分保持零值
+	dst3 := make([]int, 8)
+	total = copy(dst3, src) // 5
+	fmt.Printf("dst:%v, copy total:%d\n", dst3, total) // dst:[10 20 30 40 50 0 0 0], copy total:5
+
+	// 常见错误：目标切片为 nil 或长度不足
+	var dst4 []int
+	total = copy(dst4, src) // 0
+	// 因为 dst2 的长度为 0，所以复制了 0 个元素
+	fmt.Printf("dst:%v, copy total:%d\n", dst4, total) //dst:[], copy total:0
+
+	// 二、部分复制，指定目标偏移进行复制
+	dst5 := []int{0, 0, 0, 0, 0}
+	src2 := []int{10, 20, 30}
+	// 从dst5[2] 开始复制，即从
+	tNum := copy(dst5[2:], src2) // 复制个数3
+	fmt.Printf("dst:%v, copy total:%d\n", dst5, tNum) // dst:[0 0 10 20 30], copy total:3
+
+  dst6 := []int{0, 0, 0, 0, 0}
+	// 从 dst6[3] 开始复制，从索引3位置开始，可用位置2个，不够用户src2切片元素的个数，只复制2个元素
+	tNum = copy(dst6[3:], src2) // 2
+	fmt.Printf("dst:%v, copy total:%d\n", dst6, tNum) // dst:[0 0 0 10 20], copy total:2
+
+	// 从src的某个索引位置开始
+	// 从src[1]开始复制
+	dst7 := make([]int, 2) // [0,0]
+	tNum = copy(dst7, src2[1:]) // 从src[1]开始复制，复制到dst7中切片中
+	fmt.Printf("dst:%v, copy total:%d\n", dst7, tNum) // dst:[20 30], copy total:2
+
+	// 将src源切片复制到dst目标切片指定索引idx位置上
+	dst8 := make([]int, 5) // [0,0,0,0,0]
+	tNum = copy(dst8[2:], src2[1:]) // 2 dst8[2:]=[0,0,0] src2[1:]=[20,30]
+	fmt.Printf("dst:%v, copy total:%d\n", dst8, tNum) // dst:[0 0 20 30 0], copy total:2
+
+	// 或者使用copy实现“删除中间元素”
+	sNum := []int{10, 20, 30, 40, 50}
+	copy(sNum[1:], sNum[2:]) // 删除第二个元素 20，先是从目标dst切片从第二个元素开始覆盖，将src sNum[2:]复制到dst[1:]的idx=2开始覆盖
+	// sNum[1:] == [20, 30, 40, 50]   sNum[2:] == [30, 40, 50]复制到dst中[30 40 50 50]
+	// 最后得到 sNum:[10 30 40 50 50]
+	// 缩短sNum
+	sNum = sNum[:len(sNum)-1]
+	fmt.Printf("sNum:%v\n", sNum) // sNum:[10 30 40 50]
+
+	// 三、实现切片隔离（深拷贝），复制独立的切片
+	sNum2 := []int{12,15,17,19,21}
+
+	// 通过copy方式，返回独立切片
+	dstN := make([]int, len(sNum2))
+	copy(dstN, sNum2)
+
+	// 或者通过append,将sNum2元素展开
+	dstN2 := append([]int{}, sNum2...)
+	dstN[2] = 100
+	dstN2[2] = 120
+	// src：[12 15 17 19 21]，copy：[12 15 100 19 21], append：[12 15 120 19 21]
+	fmt.Printf("src：%v，copy：%v, append：%v\n", sNum2, dstN, dstN2) 
+	// 修改副本均不影响原始切片 sNum2
+
+	// 四、处理重叠切片，源和目标可以重叠
+	sNum3 := []int{1, 2, 3, 4, 5}
+	// 在同一个切片内，将切片元素向右移动，从索引idx2开始
+	copy(sNum3[2:], sNum3[:]) 
+	fmt.Println(sNum3)       // [1 2 1 2 3]
+// 注意：copy 的结果是按顺序逐个复制，重叠时结果是确定的
+	// sNum3[2:]=[3, 4, 5],只有3个位置，
+	// sNum3[:]=[1, 2, 3, 4, 5]，将1, 2, 3复制到dst的idx2位置。得到[1,2,1,2,3]
+	/*
+								┌──┬──┬──┬──┬──┐
+								│1 │2 │3 │4 │5 │
+								└──┴──┴──┴──┴──┘
+	dst=sNum3[2:]      →└────────┘
+	src=sNum3[:] →└────── 1│ 2│ 3│ 4│ 5│，向右移动
+	copy复制数量 = min(len(dst), len(src)) = 3
+	将1 2 3复制到dst索引3位置结果：
+								┌──┬──┬──┬──┬──┐
+								│1 │2 │1 │2 │3 │
+								└──┴──┴──┴──┴──┘
+	*/
+
+	// 向左移动
+	sNum4 := []int{1, 2, 3, 4, 5}
+	copy(sNum4[:], sNum4[2:]) // 将src=[3, 4, 5]，放到dst索引0位置
+	fmt.Println(sNum4) // [3 4 5 4 5]
+	/*
+								┌──┬──┬──┬──┬──┐
+								│1 │2 │3 │4 │5 │
+								└──┴──┴──┴──┴──┘
+	dst=sNum3[:] →└──────────────┘
+	src=sNum3[2: ←└3 │4 │5 ┘  向左移动
+	copy复制数量 = min(len(dst), len(src)) = 3
+	将4,5,6 复制到dst索引0位置，结果：
+								┌──┬──┬──┬──┬──┐
+								│3 │4 │5 │4 │5 │
+								└──┴──┴──┴──┴──┘
+	*/
 
 }
