@@ -556,4 +556,10 @@ func main()  {
 								└──┴──┴──┴──┴──┘
 	*/
 
+	// 从数组中复制元素
+	arrS := [5]int{1,2,3,4,5}
+	dst := make([]int, 3)
+	copy(dst, arrS[:]) // 将arrS[:]转化为切片
+	fmt.Println(dst)      // [1 2 3]
+
 }
