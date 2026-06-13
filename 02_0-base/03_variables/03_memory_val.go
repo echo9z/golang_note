@@ -18,15 +18,29 @@ import "fmt"
 // +------------------+
 
 // 1.常量
-const MaxRetry = 5 // 数值型：编译期直接内联到指令，没有运行时地址
-const Greet   = "hello"     // 字符串：字节数据存 .rodata，运行时不可写
-
+const MaxRetry = 5    // 数值型：编译期直接内联到指令，没有运行时地址
+const Greet = "hello" // 字符串：字节数据存 .rodata，运行时不可写
 
 // 2.包级 全局变量
-var count int      // 未初始化 → .bss段：只占位，程序加载时清零，不增大二进制大小
-var timeout = 30   // 已初始化 → .data 段：初值 30 存入二进制，程序启动时直接可用
+var count int    // 未初始化 → .bss段：只占位，程序加载时清零，不增大二进制大小
+var timeout = 30 // 已初始化 → .data 段：初值 30 存入二进制，程序启动时直接可用
 
 var name = "go" // 已初始化 → .data 段：string header（ptr+len）在 .data，字节 "go" 本身在 .rodata
+
+// 3.变量
+// x变量未逃逸，留在栈上
+func foo() int { // 函数体在 .text，foo(){}编译的机器指令
+	x := 42 // 局部变量存放站，栈上
+	fmt.Println(x)
+	return x
+}
+
+// x逃逸：移到堆
+func bar() *int {
+	x := 42
+	return &x // &x 被返回 → 地址逃出了函数作用域
+	// 编译器判定：必须分配在堆上，GC 负责回收
+}
 
 func main() {
 
@@ -34,10 +48,34 @@ func main() {
 	// fmt.Println(&A) // 常量无法取地址值，编译错误
 
 	fmt.Println(&count)   // 0x5a5d18 可以取地址，与 const 不同
-  fmt.Println(&timeout) // 0x57b468 可以取地址
-
+	fmt.Println(&timeout) // 0x57b468 可以取地址
 
 	// 局部变量: 栈
 	localVar := 5
 	fmt.Printf("局部变量:%p\n", &localVar) // 局部变量:0x19db3d8e0130
+
+	_ = foo()
+	_ = bar()
+
+	// 4. make / new — 堆分配，以及 string 的双区域
+	// make，创建切片
+	s := make([]int, 3)
+	// 栈上：slice header = {ptr=0xc000018060, len=3, cap=3}（24字节）ptr指向底层数组
+	// 堆上：实际数组 [0, 0, 0]（3×8=24字节），GC 管理
+
+	// new：对象在堆
+	p := new(int)
+	// 栈上：指针变量 p（8字节）
+	// 堆上：int 对象（8字节），GC 管理
+
+	// string 字面量：头部在栈，字节在 .rodata
+	msg := "hello"
+	// 栈上：string header = {ptr=0x012b（指向.rodata）, len=5}（16字节）
+	// .rodata：77 6f 72 6c 64（只读，运行时不可改）存放字符
+	msg = "world" // 合法：修改的是栈上的 header，ptr换了新的指向
+	// msg[0] = 'H' ❌ 编译报错：cannot assign to msg[0]
+  // 底层字节在 .rodata，写保护，不可修改
+
+	_ = s; _ = p; _ = msg
+
 }

@@ -869,6 +869,9 @@ fmt.Println(&A) // 编译错误
 
 ###### 全局变量
 **包级变量**是==指定义在函数体外部、直接隶属于某个包的变量==。它们的作用域是**包级**，同一包内的所有文件均可访问，常被用于存储配置、全局状态或常量缓存。
+- 全局变量声明在函数外，属于静态存储区，存储在全局静态区中
+- 这些变量在程序启动时被分配，程序结束时被释放。
+- 全局变量的生命周期与程序的生命周期相同。
 
 包级 `var` — BSS 段 vs 数据段
 ![707](./go.assets/img/package_var_bss_data.svg)
@@ -885,18 +888,72 @@ var name = "go" // .data 段：string header（ptr+len）在 .data，字节 "go"
 最直接的分类：`const` 在 `.rodata`，有初始值的包级 `var` 在 `.data`，零值包级 `var` 在 `.bss`，函数体在 `.text`，局部变量在栈。
 
 ###### 局部变量
-**局部变量 — 栈 vs 堆（逃逸分析）**
-
-
-##### 变量的内存存储
-全局变量:
-- 全局变量声明在函数外，属于静态存储区，存储在全局静态区中
-- 这些变量在程序启动时被分配，程序结束时被释放。
-- 全局变量的生命周期与程序的生命周期相同。
-
-局部变量:
 - 局部变量是在函数内部声明的，它们通常存储在栈上(如果不逃逸)。当函数调用时，栈会为局部变量分配内存;当函数返回时，这些栈内存会自动释放。
 - 如果局部变量被闭包或返回给外部，Go编译器会将其从栈移动到堆上，以确保变量在函数返回后仍然有效。
+
+**局部变量 — 栈 vs 堆（逃逸分析）**
+同一个 `var x = 42`，有没有逃逸，决定它去栈还是去堆。
+![707](./go.assets/img/escape_analysis_stack_heap.svg)
+```go
+// x变量未逃逸，留在栈上
+func foo() int { // 函数体在 .text，foo(){}编译的机器指令
+  x := 42 // 局部变量存放站，栈上
+  fmt.Println(x)
+  return x
+}
+
+// x逃逸：移到堆
+func bar() *int {
+  x := 42
+  return &x // &x 被返回 → 地址逃出了函数作用域 
+  // 编译器判定：必须分配在堆上，GC 负责回收
+}
+```
+
+查看逃逸：`go build -gcflags="-m" file.go`
+```bash
+go build -gcflags='-m' 03_memory_val.go
+# command-line-arguments
+./03_memory_val.go:39:6: can inline bar
+./03_memory_val.go:34:13: inlining call to fmt.Println
+./03_memory_val.go:51:13: inlining call to fmt.Println
+./03_memory_val.go:52:14: inlining call to fmt.Println
+./03_memory_val.go:56:12: inlining call to fmt.Printf
+./03_memory_val.go:59:9: inlining call to bar
+./03_memory_val.go:34:13: ... argument does not escape
+./03_memory_val.go:34:14: 42 escapes to heap
+./03_memory_val.go:40:2: moved to heap: x    # 这里出现x逃逸到堆上
+./03_memory_val.go:55:2: moved to heap: localVar
+./03_memory_val.go:51:13: ... argument does not escape
+./03_memory_val.go:52:14: ... argument does not escape
+./03_memory_val.go:56:12: ... argument does not escape
+```
+
+`make` / `new` — 堆分配，以及 `string` 的双区域
+![707](./go.assets/img/make_string_memory.svg)
+```go
+func main() {
+  // make，创建切片
+  s := make([]int, 3)
+  // 栈上：slice header = {ptr=0xc000018060, len=3, cap=3}（24字节）ptr指向底层数组
+  // 堆上：实际数组 [0, 0, 0]（3×8=24字节），GC 管理
+
+  // new：对象在堆
+  p := new(int)
+  // 栈上：指针变量 p（8字节）
+  // 堆上：int 对象（8字节），GC 管理
+
+  // string 字面量：头部在栈，字节在 .rodata
+  msg := "hello"
+  // 栈上：string header = {ptr=0x012b（指向.rodata）, len=5}（16字节）
+  // .rodata：77 6f 72 6c 64（只读，运行时不可改）存放字符
+  msg = "world" // 合法：修改的是栈上的 header，ptr换了新的指向
+  // msg[0] = 'H' ❌ 编译报错：cannot assign to msg[0]
+  // 底层字节在 .rodata，写保护，不可修改
+
+  _ = s; _ = p; _ = msg
+}
+```
 
 
 
