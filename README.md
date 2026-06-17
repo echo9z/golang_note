@@ -885,6 +885,15 @@ var name = "go" // .data 段：string header（ptr+len）在 .data，字节 "go"
 ```
 `name` 是个典型的"双区域"变量：`string` 头部（指针+长度，共16字节）在 `.data`，而底层字节数据 `go` 在 `.rodata`
 
+```go
+go build -gcflags='-m' 03_memory_val.go  
+生成-> 03_memory_val文件
+go tool nm 03_memory_val|grep -iE "count|timeout
+  5a5d18 D main.count ← D = data 段
+  57b468 D main.timeout ← D = data 段
+字母前缀 D(data)、B(bss)、R(rodata)、T(text) 直接告诉你符号在哪个区。
+```
+
 最直接的分类：`const` 在 `.rodata`，有初始值的包级 `var` 在 `.data`，零值包级 `var` 在 `.bss`，函数体在 `.text`，局部变量在栈。
 
 ###### 局部变量
@@ -4837,26 +4846,6 @@ var str []string
 str = append(str, "hello")
 fmt.Printf("字节%s 字符串切片%s",buf, str) // 字节hello 字符串[hello]
 ```
-appen扩容机制
-```go
-cap 剩余空间足够：
-┌───────────────────────────────┐
-│  1  2  3  _  _  _             │  len=3, cap=6
-│           ↑                   │
-│         append(4)             │
-│  1  2  3  4  _  _             │  len=4, cap=6
-│          共用原底层数组         │
-└───────────────────────────────┘
-
-cap 剩余空间不够（扩容）：
-┌───────────────┐
-│  1  2  3  4   │  len=4, cap=4
-└───────────────┘
-        ↓ append(5)
-┌───────────────────────────────┐
-│  1  2  3  4  5  _  _  _       │  len=5, cap=8（新数组）
-└───────────────────────────────┘
-```
 
 4.new创建切片
 ```go
@@ -4879,6 +4868,223 @@ p.val       // 等价于 (*p).val，编译器自动处理
 ```go
 pSlice[1]   // 不行，切片指针没有这个语法糖
 pMap[key]   // 不行，map 指针也一样
+```
+
+##### appen扩容机制
+cap容量足够时
+```go
+s6 := make([]int, 0, 4) // leb:0 cap:4
+s6 = append(s6, 1, 2, 3, 4)
+fmt.Printf("len=%d cap=%d %v\n", len(s6), cap(s6), s6) // len=4 cap=4 [1 2 3 4]
+
+// 触发扩容
+s6 = append(s6, 5) // cap翻一倍
+fmt.Printf("len=%d cap=%d %v\n", len(s6), cap(s6), s6) // len=5 cap=8 [1 2 3 4 5]
+```
+
+> **扩容规则（Go 1.18+）**：旧 cap < 256 → 新 cap × 2；旧 cap ≥ 256 → 新 cap × 1.25 + 192
+
+```go
+cap 剩余空间足够：
+┌───────────────────────────────┐
+│  1  2  3  _  _  _             │  len=3, cap=6
+│           ↑                   │
+│         append(4)             │
+│  1  2  3  4  _  _             │  len=4, cap=6
+│          共用原底层数组         │
+└───────────────────────────────┘
+
+cap 剩余空间不够（扩容）：
+┌───────────────┐
+│  1  2  3  4   │  len=4, cap=4
+└───────────────┘
+        ↓ append(5)
+┌───────────────────────────────┐
+│  1  2  3  4  5  _  _  _       │  len=5, cap=8（新数组）
+└───────────────────────────────┘
+```
+
+```go
+1、扩容机制三步走
+第一步：计算初始 newcap（Go 1.18+ 源码 runtime/slice.go）
+// 伪代码，简化自 growslice
+func growslice(oldCap, newLen int) int {
+      newCap := oldCap
+      doubleCap := newCap + newCap
+
+      if newLen > doubleCap {
+                  newCap = newLen                    // 一次性追加大量元素
+      } else if oldCap < 256 {
+                  newCap = doubleCap                 // 小切片：直接翻倍
+      } else {
+                  for newCap < newLen {
+                              // 平滑过渡：从 2× 向 1.25× 收敛
+                              newCap += (newCap + 3*256) / 4
+                  }
+      }
+      return newCap
+}
+
+第二步：内存对齐（mallocgc size class）
+wcap 后，Go 会把 newcap × elemSize 的字节数向上对齐到内存分配器的 size class（8、16、24、32、48…字节），再用对齐后的字节数除以 elemSize 得到最终 cap。这就是为什么实际 cap 往往比公式结果再大一点。
+
+第三步：分配 + 拷贝
+      // 分配新底层数组
+      newPtr := mallocgc(newcap * elemSize, ...)
+      // 把旧数据拷贝过去（O(n) 操作！）
+      copy(newPtr, oldPtr, oldLen * elemSize)
+      // 返回新切片头部
+```
+
+```go
+2、扩1个元素
+   起始状态
+   s := []int64{1, 2, 3, 4}   // len=4, cap=4
+   s = append(s, 5)            // 触发扩容，因为 len+1=5 > cap=4
+   第一步：公式算 newcap
+   oldCap = 4
+   newLen = 5   （需要容下 5 个元素）
+   doubleCap = 4 + 4 = 8
+
+   判断：
+      newLen(5) > doubleCap(8)?  → 否
+      oldCap(4) < 256?           → 是  ✓ int64最大取值范围256
+   ∴ newCap = doubleCap = 8
+
+   第二步：内存对齐微调
+      需要分配的字节 = newCap × elemSize
+                        = 8 × 8字节(int64)
+                        = 64 字节
+
+      64 恰好命中 size class，无需向上取整
+      ∴ 最终 cap = 64字节 ÷ 8 = 8
+
+   第三步：实际发生的事
+      旧底层数组（cap=4）         新底层数组（cap=8）
+      ┌──┬──┬──┬──┐              ┌──┬──┬──┬──┬──┬──┬──┬──┐
+      │1 │2 │3 │4 │   copy →     │1 │2 │3 │4 │5 │  │  │  │
+      └──┴──┴──┴──┘              └──┴──┴──┴──┴──┴──┴──┴──┘
+         被 GC 回收                      ↑
+                                                   5 写入 index[4]
+```
+
+```go
+3、扩5个元素
+   起始状态
+      s := []int64{1, 2, 3, 4}
+      s = append(s, 5, 6, 7, 8, 9)
+
+      oldCap = 4
+      newLen = 4 + 5 = 9   ← 需要容下 9 个元素
+
+   第一步：公式算 newcap
+      doubleCap = 4 + 4 = 8
+      判断：
+         newLen(9) > doubleCap(8)?  → 是 ✓  ← 和上次不同！
+      ∴ newCap = newLen = 9        ← 直接取 newLen，不翻倍
+      逻辑是：你要的比翻倍还多，翻倍也不够用，直接给你刚好够的数量，再交给第二步对齐。
+
+   第二步：内存对齐
+      需要分配的字节 = newCap × elemSize
+                        = 9 × 8字节(int64)
+                        = 72 字节
+
+      size class 表：…64、80、96…
+      72 字节 → 向上对齐到 80 字节
+      ∴ 最终 cap = 80字节 ÷ 8 = 10
+
+      第三步：实际发生的事
+      旧数组（cap=4）              新数组（cap=10）
+      ┌──┬──┬──┬──┐              ┌──┬──┬──┬──┬──┬──┬──┬──┬──┬──┐
+      │1 │2 │3 │4 │   copy →     │1 │2 │3 │4 │5 │6 │7 │8 │9 │  │
+      └──┴──┴──┴──┘              └──┴──┴──┴──┴──┴──┴──┴──┴──┴──┘
+         被 GC 回收                                           ↑
+                                                                                 预留 1 格
+```
+
+##### 向切片追加元素
+###### 使用 `append` 和切片表达式
+
+```go
+// 在指定idx位置插入单个元素
+insertAt := func (s []int, idx int, val int) []int {
+   // 将 s切片扩容一个位置，向后移一位
+   s = append(s, 0) // 本质向切片添加一个0元素
+   // 将i索引位置后的切片元素，整体向后移动
+   copy(s[idx+1:], s[idx:]) // src=[idx:]，取i到最后一个元素切片，处插i+1索引处，相当于将i:end整体向后一个位置
+   s[idx] = val // 最后将空出来i元素等于val,实现插入
+   return s
+}
+num1 := []int{1,2,3,4,5,6}
+num1 = insertAt(num1, 1, 100)
+fmt.Printf("num1:%v, l:%d, c:%d\n", num1, len(num1), cap(num1))
+// slice:[1 100 2 3 4 5 6], l:7, c:12
+```
+
+或者更紧凑的写法：
+```go
+func insertAt(s []int, i int, v int) []int {
+    // 利用 append 在 i 位置拆开，再拼回去
+    return append(s[:i], append([]int{v}, s[i:]...)...)
+}
+```
+
+###### 在指定位置插入切片
+**通过append函数**
+```go
+insertSlice := func (s []int, idx int, t []int) []int {
+   // append(t, s[i:]...)... 将s[i:] i处元素到最后一个元素，追加到t中
+   // 在将t中元素追加到i处
+   return append(s[:idx], append(t, s[idx:]...)...)
+}
+num2 :=[]int{10,20,30}
+num3 :=[]int{10,20}
+num2 = insertSlice(num2, 2, num3)
+fmt.Printf("num2:%v, l:%d, c:%d\n", num2, len(num2), cap(num2))
+// slice:[10 10 20 20 30], l:5, c:6
+
+```
+
+**通过copy函数**
+```go
+// 在idx处插入整个切片对象
+insertSliceCopy := func (s []int, idx int, t []int) []int {
+   // 先进行对s切片的扩容，将t切片元素添加到s中 比如s=[1 2 3],将在i处添加[4 5 6],扩容到6
+   s = append(s, t...) // [1 2 3 4 5 6]
+   copy(s[idx+len(t):], s[idx:]) // 将原i处后的所有元素，移动到添加t切片长度最后一个元素位置，为插入新的t切片保留位置
+   // 比如在idx=1第二个开始插入t切片，s[1+3]，即4从第5个位置开始，复制元素是原idx索引位置
+   // s[idx+len(t):] = [5 6] s[idx:]=[2 3 4 5 6], 将索引idx=4 [5 6]复制为[2 3]，此时s=[1 2 3 4 2 3]
+   
+   copy(s[idx:], t) // 最后将t切片3个元素复制到idx上，s[idx:]=[2 3 4 2 3] t=[4 5 6]，最后s=[1 4 5 6 2 3]
+   return s
+}
+num5 :=[]int{1,2,3}
+num6 :=[]int{4,5,6}
+num5 = insertSliceCopy(num5, 1, num6)
+fmt.Printf("num5:%v, l:%d, c:%d\n", num5, len(num5), cap(num5)) 
+// num5:[1 4 5 6 2 3], l:6, c:6
+```
+
+###### 在头部或尾部插入
+保证高性能，建议了解标准库中的 container/list（双向链表）。
+```go
+num4 := []int{10,20,30,40,50}
+num4 = append([]int{10}, num4...) // 向头插入元素10，创建一个10切片元素
+fmt.Printf("num4:%v, l:%d, c:%d\n", num4, len(num4), cap(num4))
+// slice:[10 10 20 30 40 50], l:6, c:6
+
+// 尾部添加元素
+num4 = append(num4, 999)
+fmt.Printf("num4:%v, l:%d, c:%d\n", num4, len(num4), cap(num4))
+// slice:[10 10 20 30 40 50 999], l:7, c:12
+```
+
+从 Go 1.21 开始，标准库 `slices` 包提供了 `Insert` 函数
+```go
+num7 := []int{7,8,9}
+num7 = slices.Insert(num7, 1, 100, 99)// 在1处索引添加100和99
+fmt.Printf("num7:%v, l:%d, c:%d\n", num7, len(num7), cap(num7))
+// num7:[7 100 99 8 9], l:5, c:6
 ```
 
 ##### 切片元素删除
@@ -5225,6 +5431,82 @@ copy复制数量 = min(len(dst), len(src)) = 3
 */
 ```
 
+从数组中复制元素
+```go
+arrS := [5]int{1,2,3,4,5}
+dst := make([]int, 3)
+copy(dst, arrS[:]) // 将arrS[:]转化为切片
+fmt.Println(dst) // [1 2 3]
+```
+
+从字符串string之间`[]byte`字节切片转化
+```go
+// 从字符串string到[]byte字节切片
+strA := "hello"
+bufA := make([]byte, 5)
+copy(bufA, []byte(strA)) // 将string转化为byte
+fmt.Printf("byte:%v,l:%d,c:%d\n ", bufA, len(bufA), len(bufA)) // byte:[104 101 108 108 111],l:5,c:5
+
+// []byte 和 string 之间有特殊支持
+data := []byte("hello")
+dstB := make([]byte, 3)
+copy(dstB, data)
+fmt.Println(string(dstB))  // "hel"
+```
+
+
+切片之间是不能直接比较，不能使用`==`操作符来判断两个切片是否含有全部相等元素。 切片唯一合法的比较操作是和`nil`比较。
+
+nil值的切片底层没有数组，它长度和容量都为0。但是长度和容量都是0的切片不一定是为`nil`。
+```go
+var sl1 []int // len(s1)=0;cap(s1)=0;s1==nil
+sl2 := []int{} // len(s2)=0;cap(s2)=0;s2!=nil
+sl3 := make([]int, 0) // len(s3)=0;cap(s3)=0;s3!=nil
+
+_ = sl1; _=sl2; _=sl3
+```
+判断一个切片是否是空的，要是用`len(s) == 0`来判断，不应该使用`s == nil`来判断。
+
+##### 三索引表达式
+拓展表达式 
+```go
+slice[low:high:max]
+```
+相比常见的：
+```go
+slice[low:high]
+```
+`max`，用于**限制新切片的容量(cap)**。
+
+表达式需要满足的条件是`0 <= low <= high <= max <= cap(s)`，使用拓展表达式切割的切片容量为max-low。
+```go
+slc1 := []int{1, 2, 3, 4, 5, 6, 7, 8, 9} // cap = 9
+// [low:high] 两个参数
+// len = high - low
+// cap = cap(slc1) - low
+slc2 := slc1[3:5] // [4,5] [low:high]  slc2:cap=cap(slc1)-low:4=9-4=5
+fmt.Printf("slc2:%v,l:%d,c:%d\n ", slc2, len(slc2), cap(slc2))  // slc2:[4 5],l:2,c:6
+
+// slice[low:high:max] 三个参数
+// max:max则指的是最大容量。容量为max-low
+// len = high - low
+// cap = max - low
+slc3 := slc1[2:5:6] // len:5-2=3  cap:6-2=4
+fmt.Printf("slc3:%v,l:%d,c:%d\n ", slc3, len(slc3), cap(slc3))  // slc3:[3 4 5],l:3,c:4
+```
+
+##### 清空切片
+```go
+slc4 := []int{1, 2, 3, 4, 5, 6, 7, 8, 9} 
+slc4 = slc4[0:0:0]
+fmt.Printf("slc4:%v,l:%d,c:%d\n ", slc4, len(slc4), cap(slc4)) //  slc4:[],l:0,c:0
+
+// go1.21 新增了clear内置函数，clear 会将切片内所有的值置为零值。
+slc5 := []int{1, 2, 3, 4, 5, 6, 7, 8, 9} 
+clear(slc5)
+fmt.Printf("slc4:%v,l:%d,c:%d\n ", slc5, len(slc5), cap(slc5)) // slc4:[0 0 0 0 0 0 0 0 0],l:9,c:9
+```
+
 ### 控制结构
 Go 程序都是从`main()`函数开始执行，然后按顺序执行该函数体中的代码。但我们经常会需要只有在满足一些特定情况时才执行某些代码，也就是说在代码里进行条件判断。针对这种需求，Go 提供了下面这些条件结构和分支结构：
 - if-else 结构
@@ -5564,8 +5846,6 @@ ContinueF:
         }
     }
 ```
-
-
 
 #### goto
 `goto`将控制权传递给在**同一函数**中**对应标签**的语句，示例如下：

@@ -27,6 +27,12 @@ var timeout = 30 // 已初始化 → .data 段：初值 30 存入二进制，程
 
 var name = "go" // 已初始化 → .data 段：string header（ptr+len）在 .data，字节 "go" 本身在 .rodata
 
+// go build -gcflags='-m' 03_memory_val.go  生成-> 03_memory_val文件
+// go tool nm 03_memory_val|grep -iE "count|timeout
+//  5a5d18 D main.count ← D = data 段
+// 	57b468 D main.timeout ← D = data 段
+// 字母前缀 D(data)、B(bss)、R(rodata)、T(text) 直接告诉你符号在哪个区。
+
 // 3.变量
 // x变量未逃逸，留在栈上
 func foo() int { // 函数体在 .text，foo(){}编译的机器指令
@@ -41,6 +47,15 @@ func bar() *int {
 	return &x // &x 被返回 → 地址逃出了函数作用域
 	// 编译器判定：必须分配在堆上，GC 负责回收
 }
+// 用 -gcflags="-m" 让编译器把逃逸决策打印出来：
+// go build -gcflags='-m' 03_memory_val.go
+// # command-line-arguments
+// ./03_memory_val.go:39:6: can inline bar
+// ./03_memory_val.go:59:9: inlining call to bar
+// ./03_memory_val.go:34:13: ... argument does not escape
+// ./03_memory_val.go:34:14: 42 escapes to heap
+// ./03_memory_val.go:40:2: moved to heap: x    # 这里出现x逃逸到堆上
+
 
 func main() {
 

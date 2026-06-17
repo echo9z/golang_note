@@ -103,9 +103,11 @@ func main()  {
 	fmt.Printf("users%v\n", Users)  // users[{[100 98 85]} {[140 98 150]}] 150没有被影响修改
 	fmt.Printf("CloneUser%v\n", CloneUser) // CloneUser[{[100 98 85]} {[140 98 120]}]
 
+	fmt.Println("============")
+
 	// 二、创建切片
 	// x := []int{2, 3, 5, 0, 0}[:3]
-	//1.字面量初始化切片
+	// 1.字面量初始化切片
 	s1 := []int{1,2,3} // 长度和容量都为3
 	s2 := []string{"a", "b"} // 长度和容量都为2
 	fmt.Printf("slice1:%v(%T), slice2:%v(%T)\n",s1,s1,s2,s2) // slice1:[1 2 3]([]int), slice2:[a b]([]string)
@@ -113,7 +115,6 @@ func main()  {
 	// 构建切片指定索引处的元素
 	x := []int{2, 3, 5, 8:100} // 长度为9 容量为9
 	fmt.Println(len(x), cap(x), x) // 9 9 [2 3 5 0 0 0 0 0 100]
-
 
 	// 2.使用make函数创建切片
 	/* func make(t Type, size ...IntegerType) Type
@@ -162,7 +163,6 @@ func main()  {
 	fmt.Println((*pSlice)[1]) // 2 
 	// 这里注意 切片指针 (*pSlice)[1] 不能简写为 pSlice[1]，必须先*解引用得到 []int，再下标访问
 	
-
 	// 3.通过append()向预分配的切片追加元素
 	// func append(slice []Type, elems ...Type) []Type
 	// 	slice：目标切片
@@ -197,7 +197,9 @@ func main()  {
 	str = append(str, "hello")
 	fmt.Printf("字节%s 字符串切片%s\n",buf, str) // 字节hello 字符串切片[hello]
 
-	// append扩容机制
+	fmt.Println("============")
+
+	// 三、append扩容机制
 	// cap容量足够时
 	s6 := make([]int, 0, 4) // leb:0 cap:4
 	s6 = append(s6, 1, 2, 3, 4)
@@ -208,9 +210,9 @@ func main()  {
 	fmt.Printf("len=%d cap=%d %v\n", len(s6), cap(s6), s6) // len=5 cap=8 [1 2 3 4 5]
 
 	/*
-	一、扩容机制三步走
+	1、扩容机制三步走
 	第一步：计算初始 newcap（Go 1.18+ 源码 runtime/slice.go）
-		go// 伪代码，简化自 growslice
+		// 伪代码，简化自 growslice
 		func growslice(oldCap, newLen int) int {
 				newCap := oldCap
 				doubleCap := newCap + newCap
@@ -238,11 +240,11 @@ func main()  {
 		copy(newPtr, oldPtr, oldLen * elemSize)
 		// 返回新切片头部
 
-	二、扩1个元素
+	2、扩1个元素
 	起始状态
 	s := []int64{1, 2, 3, 4}   // len=4, cap=4
 	s = append(s, 5)            // 触发扩容，因为 len+1=5 > cap=4
-	公式算 newcap
+	第一步：公式算 newcap
 	oldCap = 4
 	newLen = 5   （需要容下 5 个元素）
 	doubleCap = 4 + 4 = 8
@@ -268,7 +270,7 @@ func main()  {
 			被 GC 回收                      ↑
 																	5 写入 index[4]
 
-	三、扩5个元素
+	3、扩5个元素
 	起始状态
 		s := []int64{1, 2, 3, 4}
 		s = append(s, 5, 6, 7, 8, 9)
@@ -301,7 +303,75 @@ func main()  {
 																											预留 1 格
 	*/
 
-	// 删除切片中元素
+	fmt.Println("============")
+
+	// 四、向切片插入元素
+	// 在指定idx位置插入单个元素
+	insertAt := func (s []int, idx int, val int) []int {
+		// 将 s切片扩容一个位置，向后移一位
+		s = append(s, 0) // 本质向切片添加一个0元素
+		// 将i索引位置后的切片元素，整体向后移动
+		copy(s[idx+1:], s[idx:]) // src=[idx:]，取i到最后一个元素切片，处插i+1索引处，相当于将i:end整体向后一个位置
+		s[idx] = val // 最后将空出来i元素等于val,实现插入
+		return s
+	}
+	num1 := []int{1,2,3,4,5,6}
+	num1 = insertAt(num1, 1, 100)
+	fmt.Printf("num1:%v, l:%d, c:%d\n", num1, len(num1), cap(num1))
+	// slice:[1 100 2 3 4 5 6], l:7, c:12
+
+	// 在指定位置插入整个切片 
+	// 1.1通过append函数
+	insertSlice := func (s []int, idx int, t []int) []int {
+		// append(t, s[i:]...)... 将s[i:] i处元素到最后一个元素，追加到t中
+		// 在将t中元素追加到i处
+		return append(s[:idx], append(t, s[idx:]...)...)
+	}
+	num2 :=[]int{10,20,30}
+	num3 :=[]int{10,20}
+	num2 = insertSlice(num2, 2, num3)
+	fmt.Printf("num2:%v, l:%d, c:%d\n", num2, len(num2), cap(num2))
+	// slice:[10 10 20 20 30], l:5, c:6
+
+	// 1.2通过copy函数
+	// 在idx处插入整个切片对象
+	insertSliceCopy := func (s []int, idx int, t []int) []int {
+		// 先进行对s切片的扩容，将t切片元素添加到s中 比如s=[1 2 3],将在i处添加[4 5 6],扩容到6
+		s = append(s, t...) // [1 2 3 4 5 6]
+		copy(s[idx+len(t):], s[idx:]) // 将原i处后的所有元素，移动到添加t切片长度最后一个元素位置，为插入新的t切片保留位置
+		// 比如在idx=1第二个开始插入t切片，s[1+3]，即4从第5个位置开始，复制元素是原idx索引位置
+		// s[idx+len(t):] = [5 6] s[idx:]=[2 3 4 5 6], 将索引idx=4 [5 6]复制为[2 3]，此时s=[1 2 3 4 2 3]
+		
+		copy(s[idx:], t) // 最后将t切片3个元素复制到idx上，s[idx:]=[2 3 4 2 3] t=[4 5 6]，最后s=[1 4 5 6 2 3]
+		return s
+	}
+	num5 :=[]int{1,2,3}
+	num6 :=[]int{4,5,6}
+	num5 = insertSliceCopy(num5, 1, num6)
+	fmt.Printf("num5:%v, l:%d, c:%d\n", num5, len(num5), cap(num5)) 
+	// num5:[1 4 5 6 2 3], l:6, c:6
+
+	// 在头部或尾部插入，保证高性能，建议了解标准库中的 container/list（双向链表）。
+	// 在头部添加
+	num4 := []int{10,20,30,40,50}
+	num4 = append([]int{10}, num4...) // 向头插入元素10，创建一个10切片元素
+	fmt.Printf("num4:%v, l:%d, c:%d\n", num4, len(num4), cap(num4))
+	// slice:[10 10 20 30 40 50], l:6, c:6
+
+	// 尾部添加元素
+	num4 = append(num4, 999)
+	fmt.Printf("num4:%v, l:%d, c:%d\n", num4, len(num4), cap(num4))
+	// slice:[10 10 20 30 40 50 999], l:7, c:12
+
+	// 从 Go 1.21 开始，标准库 slices 包提供了 Insert 函数
+	num7 := []int{7,8,9}
+	num7 = slices.Insert(num7, 1, 100, 99)// 在1处索引添加100和99
+	fmt.Printf("num7:%v, l:%d, c:%d\n", num7, len(num7), cap(num7)) // num7:[7 100 99 8 9], l:5, c:6
+
+
+	fmt.Println("============")
+
+	// 五、删除切片中元素
 	// 1.通过slices标准库的delete函数 （推荐）1.21之前
 	ss4 := []string{"apple", "banana", "cherry", "date"}
 	slices.Delete(ss4, 1, 2) // 删除第二个元素，Delete(目标切片,起始idx,结束idx)  左闭右开 [start, end)
@@ -441,7 +511,9 @@ func main()  {
 	// nodes = append(nodes[:n6], nodes[n6+1:]...) 这么些nodes中第三个元素是保存的
 	fmt.Printf("%v\n", nodes) // [&nn1,&nn3]
 
-	// copy函数用于两个切片直接复制元素
+	fmt.Println("============")
+
+	// 六、copy函数用于两个切片直接复制元素
 	/*
 	func copy(dst, src []T) int
 	dst:目标切片
@@ -449,29 +521,29 @@ func main()  {
 	返回实际复制的元素个数。将src中的元素复制st目标切片中，返回复制元素的个数
 	*/
 	src := []int{10, 20, 30, 40, 50}
-	// 一、标准复制
+	// 6.1、标准复制
 	// 1.dst目标切片有足够的长度 dst >= src ->全部复制
 	dst1 := make([]int, len(src))
 	total := copy(dst1, src) // 复制5个
-	fmt.Printf("dst:%v, copy total:%d\n", dst1, total) // dst:[10 20 30 40 50], copy total:5
+	fmt.Printf("dst1:%v, copy total:%d\n", dst1, total) // dst:[10 20 30 40 50], copy total:5
 
 	// 2.dst目标切片没有足够的长度 dst < src ->只复制 dst 长度
 	dst2 := make([]int, 2)
 	total = copy(dst2, src) // 2
-	fmt.Printf("dst:%v, copy total:%d\n", dst2, total) // dst:[10 20], copy total:2
+	fmt.Printf("dst2:%v, copy total:%d\n", dst2, total) // dst:[10 20], copy total:2
 
 	// 3. dst 长度 > src 长度 → 复制完后，dst 多余部分保持零值
 	dst3 := make([]int, 8)
 	total = copy(dst3, src) // 5
-	fmt.Printf("dst:%v, copy total:%d\n", dst3, total) // dst:[10 20 30 40 50 0 0 0], copy total:5
+	fmt.Printf("dst3:%v, copy total:%d\n", dst3, total) // dst:[10 20 30 40 50 0 0 0], copy total:5
 
 	// 常见错误：目标切片为 nil 或长度不足
 	var dst4 []int
 	total = copy(dst4, src) // 0
 	// 因为 dst2 的长度为 0，所以复制了 0 个元素
-	fmt.Printf("dst:%v, copy total:%d\n", dst4, total) //dst:[], copy total:0
+	fmt.Printf("dst4:%v, copy total:%d\n", dst4, total) //dst:[], copy total:0
 
-	// 二、部分复制，指定目标偏移进行复制
+	// 6.2、部分复制，指定目标偏移进行复制
 	dst5 := []int{0, 0, 0, 0, 0}
 	src2 := []int{10, 20, 30}
 	// 从dst5[2] 开始复制，即从
@@ -503,7 +575,7 @@ func main()  {
 	sNum = sNum[:len(sNum)-1]
 	fmt.Printf("sNum:%v\n", sNum) // sNum:[10 30 40 50]
 
-	// 三、实现切片隔离（深拷贝），复制独立的切片
+	// 6.3、实现切片隔离（深拷贝），复制独立的切片
 	sNum2 := []int{12,15,17,19,21}
 
 	// 通过copy方式，返回独立切片
@@ -518,12 +590,12 @@ func main()  {
 	fmt.Printf("src：%v，copy：%v, append：%v\n", sNum2, dstN, dstN2) 
 	// 修改副本均不影响原始切片 sNum2
 
-	// 四、处理重叠切片，源和目标可以重叠
+	// 6.4、处理重叠切片，源和目标可以重叠
 	sNum3 := []int{1, 2, 3, 4, 5}
 	// 在同一个切片内，将切片元素向右移动，从索引idx2开始
 	copy(sNum3[2:], sNum3[:]) 
 	fmt.Println(sNum3)       // [1 2 1 2 3]
-// 注意：copy 的结果是按顺序逐个复制，重叠时结果是确定的
+	// 注意：copy 的结果是按顺序逐个复制，重叠时结果是确定的
 	// sNum3[2:]=[3, 4, 5],只有3个位置，
 	// sNum3[:]=[1, 2, 3, 4, 5]，将1, 2, 3复制到dst的idx2位置。得到[1,2,1,2,3]
 	/*
@@ -556,10 +628,64 @@ func main()  {
 								└──┴──┴──┴──┴──┘
 	*/
 
-	// 从数组中复制元素
+	// 6.5从数组中复制元素
 	arrS := [5]int{1,2,3,4,5}
 	dst := make([]int, 3)
 	copy(dst, arrS[:]) // 将arrS[:]转化为切片
 	fmt.Println(dst)      // [1 2 3]
+
+	// 6.6从字符串string到[]byte字节切片
+	strA := "hello"
+	bufA := make([]byte, 5)
+	copy(bufA, []byte(strA)) // 将string转化为byte
+	fmt.Printf("byte:%v,l:%d,c:%d\n ", bufA, len(bufA), len(bufA)) // byte:[104 101 108 108 111],l:5,c:5
+
+	// 6.7[]byte 和 string 之间有特殊支持
+	data := []byte("hello")
+	dstB := make([]byte, 3)
+	copy(dstB, data)
+	fmt.Println(string(dstB))  // "hel"
+
+	// 七、遍历切片
+	slicesAll := []any{"hello",2,6.31,true}
+	// 遍历与数组一致
+	for i := 0; i < len(slicesAll); i++ {
+		fmt.Println(slicesAll[i])
+	}
+	// range遍历
+	for _, vSlice := range slicesAll {
+		fmt.Println(vSlice)
+	}
+
+	// 八、切片不能直接比较
+	var sl1 []int         // len(s1)=0;cap(s1)=0;s1==nil
+	sl2 := []int{}        // len(s2)=0;cap(s2)=0;s2!=nil
+	sl3 := make([]int, 0) // len(s3)=0;cap(s3)=0;s3!=nil
+	_ = sl1; _=sl2; _=sl3
+
+	// 拓展表达式 slice[low:high:max]
+	// 表达式需要满足的条件是0 <= low <= high <= max <= cap(s)，使用拓展表达式切割的切片容量为max-low
+	slc1 := []int{1, 2, 3, 4, 5, 6, 7, 8, 9} // cap = 9
+	// [low:high] 两个参数
+	// len = high - low
+	// cap = cap(slc1) - low
+	slc2 := slc1[3:5] // [4,5] [low:high]  slc2:cap=cap(slc1)-low:4=9-4=5
+	fmt.Printf("slc2:%v,l:%d,c:%d\n ", slc2, len(slc2), cap(slc2))  // slc2:[4 5],l:2,c:6
+
+	// slice[low:high:max] 三个参数
+	// max:max则指的是最大容量。容量为max-low
+	// len = high - low
+	// cap = max - low
+	slc3 := slc1[2:5:6] // len:5-2=3  cap:6-2=4
+	fmt.Printf("slc3:%v,l:%d,c:%d\n ", slc3, len(slc3), cap(slc3))  // slc3:[3 4 5],l:3,c:4
+
+	// 清空切片
+	slc4 := []int{1, 2, 3, 4, 5, 6, 7, 8, 9} 
+	slc4 = slc4[0:0:0]
+	fmt.Printf("slc4:%v,l:%d,c:%d\n ", slc4, len(slc4), cap(slc4)) //  slc4:[],l:0,c:0
+	// go1.21 新增了clear内置函数，clear 会将切片内所有的值置为零值。
+	slc5 := []int{1, 2, 3, 4, 5, 6, 7, 8, 9} 
+	clear(slc5)
+	fmt.Printf("slc4:%v,l:%d,c:%d\n ", slc5, len(slc5), cap(slc5)) // slc4:[0 0 0 0 0 0 0 0 0],l:9,c:9
 
 }

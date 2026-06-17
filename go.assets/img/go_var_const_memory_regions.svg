@@ -1,0 +1,112 @@
+<svg width="100%" viewBox="0 0 920 600" role="img" xmlns="http://www.w3.org/2000/svg">
+  <title>Go 变量 / 常量 → 内存区域归属一览</title>
+  <desc>把各种 Go 声明（常量、全局变量、局部变量、逃逸变量、make/new、字符串）对照到代码区/只读区/数据段/BSS/堆/栈六个内存区域，● 表示数据所在区域。</desc>
+
+  <!-- 整卡深色背景，保证在亮/暗主题下都可读 -->
+  <rect x="14" y="14" width="892" height="572" rx="14" fill="rgb(34,33,31)" stroke="rgba(222,220,209,0.14)" stroke-width="1"/>
+
+  <!-- 标题 -->
+  <text x="460" y="44" text-anchor="middle" fill="rgb(250,249,245)" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-size="18" font-weight="600">Go 变量 / 常量 → 内存区域归属一览</text>
+  <text x="460" y="65" text-anchor="middle" fill="rgb(138,137,130)" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-size="12">每行声明在哪些区域存放数据（ ● = 数据所在区域，一行可命中多个区域）</text>
+
+  <!-- 声明列表底色带 -->
+  <rect x="30" y="86" width="254" height="398" rx="6" fill="rgba(255,255,255,0.025)"/>
+
+  <!-- 声明列表表头 -->
+  <rect x="30" y="86" width="254" height="46" rx="6" fill="rgb(46,45,43)" stroke="rgba(222,220,209,0.14)" stroke-width="0.6"/>
+  <text x="157" y="114" text-anchor="middle" fill="rgb(211,209,199)" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="600">声明 Declaration</text>
+
+  <!-- 六个区域列表头 -->
+  <g font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" text-anchor="middle">
+    <!-- .text -->
+    <rect x="295" y="86" width="95" height="46" rx="6" fill="rgb(68,68,65)" stroke="rgb(180,178,169)" stroke-width="0.6"/>
+    <text x="342.5" y="106" fill="rgb(211,209,199)" font-size="13" font-weight="600">代码区</text>
+    <text x="342.5" y="124" fill="rgb(180,178,169)" font-size="11">.text</text>
+    <!-- .rodata -->
+    <rect x="396" y="86" width="95" height="46" rx="6" fill="rgb(113,43,19)" stroke="rgb(240,153,123)" stroke-width="0.6"/>
+    <text x="443.5" y="106" fill="rgb(245,196,179)" font-size="13" font-weight="600">只读区</text>
+    <text x="443.5" y="124" fill="rgb(240,153,123)" font-size="11">.rodata</text>
+    <!-- .data -->
+    <rect x="497" y="86" width="95" height="46" rx="6" fill="rgb(99,56,6)" stroke="rgb(239,159,39)" stroke-width="0.6"/>
+    <text x="544.5" y="106" fill="rgb(250,199,117)" font-size="13" font-weight="600">数据段</text>
+    <text x="544.5" y="124" fill="rgb(239,159,39)" font-size="11">.data</text>
+    <!-- .bss -->
+    <rect x="598" y="86" width="95" height="46" rx="6" fill="rgb(60,52,137)" stroke="rgb(175,169,236)" stroke-width="0.6"/>
+    <text x="645.5" y="106" fill="rgb(206,203,246)" font-size="13" font-weight="600">零值段</text>
+    <text x="645.5" y="124" fill="rgb(175,169,236)" font-size="11">.bss</text>
+    <!-- heap -->
+    <rect x="699" y="86" width="95" height="46" rx="6" fill="rgb(12,68,124)" stroke="rgb(133,183,235)" stroke-width="0.6"/>
+    <text x="746.5" y="106" fill="rgb(181,212,244)" font-size="13" font-weight="600">堆</text>
+    <text x="746.5" y="124" fill="rgb(133,183,235)" font-size="11">Heap</text>
+    <!-- stack -->
+    <rect x="800" y="86" width="95" height="46" rx="6" fill="rgb(8,80,65)" stroke="rgb(93,202,165)" stroke-width="0.6"/>
+    <text x="847.5" y="106" fill="rgb(159,225,203)" font-size="13" font-weight="600">栈</text>
+    <text x="847.5" y="124" fill="rgb(93,202,165)" font-size="11">Stack</text>
+  </g>
+
+  <!-- 行分隔线 -->
+  <g stroke="rgba(222,220,209,0.07)" stroke-width="0.6">
+    <line x1="30" y1="164" x2="895" y2="164"/>
+    <line x1="30" y1="196" x2="895" y2="196"/>
+    <line x1="30" y1="228" x2="895" y2="228"/>
+    <line x1="30" y1="260" x2="895" y2="260"/>
+    <line x1="30" y1="292" x2="895" y2="292"/>
+    <line x1="30" y1="324" x2="895" y2="324"/>
+    <line x1="30" y1="356" x2="895" y2="356"/>
+    <line x1="30" y1="388" x2="895" y2="388"/>
+    <line x1="30" y1="420" x2="895" y2="420"/>
+    <line x1="30" y1="452" x2="895" y2="452"/>
+  </g>
+
+  <!-- 声明列表内容 -->
+  <g font-family="'SF Mono', ui-monospace, Menlo, Consolas, monospace" font-size="12.5" dominant-baseline="central">
+    <text x="44" y="148" fill="rgb(194,192,182)">const N = 5<tspan dx="8" fill="rgb(120,119,112)" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-size="11">// 数值常量·内联</tspan></text>
+    <text x="44" y="180" fill="rgb(194,192,182)">const S = "hi"<tspan dx="8" fill="rgb(120,119,112)" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-size="11">// 字节常量</tspan></text>
+    <text x="44" y="212" fill="rgb(194,192,182)">var zero int<tspan dx="8" fill="rgb(120,119,112)" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-size="11">// 零值全局</tspan></text>
+    <text x="44" y="244" fill="rgb(194,192,182)">var init = 30<tspan dx="8" fill="rgb(120,119,112)" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-size="11">// 初值全局</tspan></text>
+    <text x="44" y="276" fill="rgb(194,192,182)">var g = "go"<tspan dx="8" fill="rgb(120,119,112)" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-size="11">// 全局 string</tspan></text>
+    <text x="44" y="308" fill="rgb(194,192,182)">x := 42<tspan dx="8" fill="rgb(120,119,112)" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-size="11">// 局部·不逃逸</tspan></text>
+    <text x="44" y="340" fill="rgb(194,192,182)">return &amp;x<tspan dx="8" fill="rgb(120,119,112)" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-size="11">// 局部·逃逸</tspan></text>
+    <text x="44" y="372" fill="rgb(194,192,182)">make([]int, 3)<tspan dx="8" fill="rgb(120,119,112)" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-size="11">// 切片</tspan></text>
+    <text x="44" y="404" fill="rgb(194,192,182)">new(int)<tspan dx="8" fill="rgb(120,119,112)" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-size="11">// 指针</tspan></text>
+    <text x="44" y="436" fill="rgb(194,192,182)">m := "hello"<tspan dx="8" fill="rgb(120,119,112)" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-size="11">// 局部 string</tspan></text>
+    <text x="44" y="468" fill="rgb(194,192,182)">s := a+" "+b<tspan dx="8" fill="rgb(120,119,112)" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-size="11">// 运行期拼接</tspan></text>
+  </g>
+
+  <!-- 归属圆点（● = 数据所在区域） -->
+  <g stroke="rgba(0,0,0,0.28)" stroke-width="1">
+    <!-- R0 const N=5  -> .text (内联指令) -->
+    <circle cx="342.5" cy="148" r="6.5" fill="rgb(180,178,169)"/>
+    <!-- R1 const S="hi" -> .rodata -->
+    <circle cx="443.5" cy="180" r="6.5" fill="rgb(240,153,123)"/>
+    <!-- R2 var zero int -> .bss -->
+    <circle cx="645.5" cy="212" r="6.5" fill="rgb(175,169,236)"/>
+    <!-- R3 var init=30 -> .data -->
+    <circle cx="544.5" cy="244" r="6.5" fill="rgb(239,159,39)"/>
+    <!-- R4 var g="go" -> .data(头) + .rodata(字节) -->
+    <circle cx="544.5" cy="276" r="6.5" fill="rgb(239,159,39)"/>
+    <circle cx="443.5" cy="276" r="6.5" fill="rgb(240,153,123)"/>
+    <!-- R5 x:=42 不逃逸 -> stack -->
+    <circle cx="847.5" cy="308" r="6.5" fill="rgb(93,202,165)"/>
+    <!-- R6 return &x 逃逸 -> heap -->
+    <circle cx="746.5" cy="340" r="6.5" fill="rgb(133,183,235)"/>
+    <!-- R7 make slice -> stack(头) + heap(数组) -->
+    <circle cx="847.5" cy="372" r="6.5" fill="rgb(93,202,165)"/>
+    <circle cx="746.5" cy="372" r="6.5" fill="rgb(133,183,235)"/>
+    <!-- R8 new(int) -> stack(指针) + heap(int) -->
+    <circle cx="847.5" cy="404" r="6.5" fill="rgb(93,202,165)"/>
+    <circle cx="746.5" cy="404" r="6.5" fill="rgb(133,183,235)"/>
+    <!-- R9 m:="hello" -> stack(头) + .rodata(字节) -->
+    <circle cx="847.5" cy="436" r="6.5" fill="rgb(93,202,165)"/>
+    <circle cx="443.5" cy="436" r="6.5" fill="rgb(240,153,123)"/>
+    <!-- R10 s:=a+" "+b 拼接 -> heap -->
+    <circle cx="746.5" cy="468" r="6.5" fill="rgb(133,183,235)"/>
+  </g>
+
+  <!-- 底部说明 -->
+  <g font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif">
+    <text x="30" y="510" fill="rgb(160,159,150)" font-size="12">复合类型（string / slice / new 对象）：头部随变量所在区域，底层数据另存他处 —— 故一行可命中多个区域。</text>
+    <text x="30" y="532" fill="rgb(120,119,112)" font-size="11.5">验证：go tool nm &lt;二进制&gt; 看符号段（D=数据段 · B=零值段 · R=只读 · T=代码）   ·   go build -gcflags="-m" 看逃逸决策</text>
+    <text x="30" y="552" fill="rgb(120,119,112)" font-size="11.5">常量无运行时地址：数值型编译期内联进 .text 指令流；字符串常量字节存 .rodata —— 均不可取地址。</text>
+  </g>
+</svg>
