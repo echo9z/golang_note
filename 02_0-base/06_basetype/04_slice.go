@@ -688,4 +688,106 @@ func main()  {
 	clear(slc5)
 	fmt.Printf("slc4:%v,l:%d,c:%d\n ", slc5, len(slc5), cap(slc5)) // slc4:[0 0 0 0 0 0 0 0 0],l:9,c:9
 
+	// 多维切片
+	var grid [][]int = [][]int{
+		{1,2,3},
+		{4,5,6},
+		{7,8,9},
+	}
+	fmt.Println(grid[2][1]) // 第三行第一个元素
+	// 通过make动态创建，先分配行数，在逐行分配
+	rows, cols := 3, 4
+	grid2 := make([][]int, rows)
+
+	for i := range grid2 {
+		grid2[i] = make([]int, cols) // 每行中4个元素
+	}
+	fmt.Println(grid2) // [[0 0 0 0] [0 0 0 0] [0 0 0 0]]
+
+	// 遍历二维切片
+	grid3 := [][]int{{1, 2}, {3, 4, 5}, {6}}
+	// 方式一：range
+	for i, row := range grid3 {
+		for j, v := range row {
+			fmt.Printf("[%d][%d]=%d\t",i,j,v)
+		}
+		fmt.Println("")
+	}
+	// 方式二：for循环
+	for i := 0; i < len(grid3); i++ {
+		for j := 0; j < len(grid3[i]); j++ {
+			fmt.Printf("[%d][%d]=%d\t",i,j,grid3[i][j])
+		}
+		fmt.Println("")
+	}
+
+	// 按行切片 append 添加（构建动态网格）
+	var grid4 [][]int
+	grid4 = append(grid4, []int{1,5})
+	grid4 = append(grid4, []int{6,10})
+	grid4 = append(grid4, []int{9,12,18})
+	fmt.Println(grid4) // [[1 5] [6 10] [9 12 18]]
+
+	// 按列 append（在行尾追加元素）
+	grid5 := make([][]int, 3)
+	for i := range grid5 {
+		grid5[i] = make([]int, 0)
+	}
+	// 通过idx索引添加元素
+	grid5[0] = []int{5,4,3}
+	grid5[1] = []int{2}
+	grid5[2] = []int{8,4,3}
+	fmt.Println(grid5) // [[5 4 3] [2] [8 4 3]]
+	// 修改二维切片元素
+	grid5[2][0] = 100
+	fmt.Println(grid5) // [[5 4 3] [2] [100 4 3]]
+
+	// 矩阵乘法
+	// 必须满足C = A × B，要求 A 的列数 = B 的行数。
+	// 设 A 是 m×k 矩阵，B 是 k×n 矩阵，则 C 是 m×n 矩阵：
+	/*
+	  A = [1 2]      B = [5 6]
+   	    [3 4]          [7 8] 
+	计算每个元素（A 的行 × B 的列）：
+	   A[1,2]的横向			    A[1,2]的横向
+	 * B[5]								* B[6]
+			[7]纵向							 [8]纵向
+		得到1*5+2*7=19       1*6+2*8=22
+
+	   A[3,4]的横向			    A[3,4]的横向
+	 * B[5]								* B[6]
+			[7]纵向							 [8]纵向
+		得到3*5+4*7=43        3*6+4*8=50
+		结果：
+		C = [19 22]
+    		[43 50]
+	*/
+	A := [][]int{
+		{1, 2},
+		{3, 4},
+	}
+	B := [][]int{
+		{5, 6},
+		{7, 8},
+	}
+	// 初始化结果矩阵C
+	C := make([][]int, len(A)) // 
+	for i := range A { // 每个行内有几个元素
+		C[i] = make([]int, len(B[0]))
+	}
+	for i := 0; i < len(A); i++ { // 取遍历 A切片的每一个行。比如：A有两行len=2。外层先处理第一行{1, 2}
+		for j := 0; j < len(B[i]); j++ { // 取row列 从B切片中纵向，有2列
+			var sum int
+			for p := 0; p < len(B); p++ { 
+				// 最内层取的是c[i][j]的积点，
+				// 比如
+				// a[0][0]*b[0][0](第一次p循环)=1*5 累加到sum中
+				// a[0][1]*b[1][0](第二次p循环)=2*7
+				// c[0][0]=5+14=19 推出p的for循环得到，C[i][j] = A 第 i 行 与 B 第 j 列 对应元素相乘再求和（点积）。
+				sum += A[i][p] * B[p][j] // 这里的p就是 a[0][p]*b[p][0]，纵向的向下移动
+			}
+			C[i][j] = sum
+		}
+	}
+	fmt.Println(C)
 }

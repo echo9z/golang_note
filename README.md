@@ -5507,6 +5507,91 @@ clear(slc5)
 fmt.Printf("slc4:%v,l:%d,c:%d\n ", slc5, len(slc5), cap(slc5)) // slc4:[0 0 0 0 0 0 0 0 0],l:9,c:9
 ```
 
+##### 多维切片
+Go 中的二维切片本质是**切片的切片**：`[][]T`。[Effective Go - 二维切片](https://go.dev/doc/effective_go#two_dimensional_slices)
+```go
+var grid [][]int = [][]int{
+  {1,2,3},
+  {4,5,6},
+  {7,8,9},
+}
+fmt.Println(grid[2][1]) // 第三行第一个元素
+// 通过make动态创建，先分配行数，在逐行分配
+rows, cols := 3, 4
+grid2 := make([][]int, rows)
+
+for i := range grid2 {
+  grid2[i] = make([]int, cols) // 每行中4个元素
+}
+fmt.Println(grid2) // [[0 0 0 0] [0 0 0 0] [0 0 0 0]]
+```
+
+遍历二维切片
+```go
+grid3 := [][]int{{1, 2}, {3, 4, 5}, {6}}
+// 方式一：range
+for i, row := range grid3 {
+  for j, v := range row {
+    fmt.Printf("[%d][%d]=%d\t",i,j,v)
+  }
+  fmt.Println("")
+}
+// 方式二：for循环
+for i := 0; i < len(grid3); i++ {
+  for j := 0; j < len(grid3[i]); j++ {
+    fmt.Printf("[%d][%d]=%d\t",i,j,grid3[i][j])
+  }
+  fmt.Println("")
+}
+```
+
+二维切片添加元素
+```go
+// 按行切片 append 添加（构建动态网格）
+var grid4 [][]int
+grid4 = append(grid4, []int{1,5})
+grid4 = append(grid4, []int{6,10})
+grid4 = append(grid4, []int{9,12,18})
+fmt.Println(grid4) // [[1 5] [6 10] [9 12 18]]
+
+// 按列 append（在行尾追加元素）
+grid5 := make([][]int, 3)
+for i := range grid5 {
+  grid5[i] = make([]int, 0)
+}
+
+// 通过idx索引添加元素
+grid5[0] = []int{5,4,3}
+grid5[1] = []int{2}
+grid5[2] = []int{8,4,3}
+fmt.Println(grid5) // [[5 4 3] [2] [8 4 3]]
+// 修改二维切片元素
+grid5[2][0] = 100
+fmt.Println(grid5) // [[5 4 3] [2] [100 4 3]]
+```
+
+
+二维切片 `[][]int`（推荐，灵活）
+```go
+grid (slice header)
+  Data → [ptr0, ptr1, ptr2]      ← 一维指针数组
+            │      │      │
+            ↓      ↓      ↓
+          [1,2,3] [4,5] [6,7,8]   ← 每行独立分配，地址不连续
+每行是独立的底层数组，地址可以不连续
+行长可变（jagged）
+访问需要两次解引用：header → 行指针 → 元素
+```
+
+二维数组 `[3][4]int`（固定大小，连续）
+```go
+arr: 一整块连续内存
+[1,2,3,4, 5,6,7,8, 9,10,11,12]
+└─行0─┘ └─行1─┘ └─行2───┘
+一整块连续内存，访问只需算偏移，更快
+行列固定，不能变长
+```
+
 ### 控制结构
 Go 程序都是从`main()`函数开始执行，然后按顺序执行该函数体中的代码。但我们经常会需要只有在满足一些特定情况时才执行某些代码，也就是说在代码里进行条件判断。针对这种需求，Go 提供了下面这些条件结构和分支结构：
 - if-else 结构
