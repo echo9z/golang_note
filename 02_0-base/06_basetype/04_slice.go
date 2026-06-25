@@ -157,13 +157,23 @@ func main()  {
 	emptySli2 := []int{}       // 同样非nil空切片
 	fmt.Printf("nilSlice:%v, emp1:%v, emp2:%v\n", nilSlice, emptySli,emptySli2) // nilSlice:[], emp1:[], emp2:[]
 
-	// 通过new函数创建切片，返回的是切片指针
+	// 3.通过new函数创建切片，返回的是切片指针
+	// func new(Type) *Type，分配的内存会被清零，即初始化赋予零值。
+	// type为一个类型（如 int, string, struct 等）
+	// 返回该类型指针 *Type
+
 	pSlice := new([]int{1,2,3}) // 返回类型指针类型 *int
 	fmt.Printf("val:%p %v (%T)\n", pSlice, *pSlice, pSlice) // val:0x1decbcc9c468  [1 2 3] (*[]int)
 	fmt.Println((*pSlice)[1]) // 2 
 	// 这里注意 切片指针 (*pSlice)[1] 不能简写为 pSlice[1]，必须先*解引用得到 []int，再下标访问
+
+	pSlice = new([]int)
+	fmt.Printf("val:%p %v (%T)\n", pSlice, *pSlice == nil, pSlice) // val:0xb925eb40318 true (*[]int)
+
+	pSlice2 := new([8]int)[0:5]
+	fmt.Printf("val:%p %v (%T)\n", pSlice2, pSlice2, pSlice2) // val:0x22f23880a340 [0 0 0 0 0] ([]int)
 	
-	// 3.通过append()向预分配的切片追加元素
+	// 4.通过append()向预分配的切片追加元素
 	// func append(slice []Type, elems ...Type) []Type
 	// 	slice：目标切片
 	// 	elems：可变参数，向目标切片添加1个或多个元素
@@ -646,6 +656,52 @@ func main()  {
 	copy(dstB, data)
 	fmt.Println(string(dstB))  // "hel"
 
+	// 浅拷贝问题
+	type Person struct {
+		Name string
+		Age int
+	}
+	shallowCopy := func ()  {
+		original := []*Person{
+			{"tom", 18},
+			{"jana", 20},
+		}
+		// 使用make+copy进行克隆
+		byCopySlice := make([]*Person, len(original))
+		copy(byCopySlice, original)
+
+		// 使用slice.clone进行克隆
+		byCloneSlice := slices.Clone(original)
+
+		// 通过两个克隆切片，修改切片数据
+		byCopySlice[0].Name = "Alice"
+		byCloneSlice[1].Age = 21
+		// 修改克隆出来的切片，但底层元素对象属性未深度拷贝，但name,age是共享同一内存
+		fmt.Printf("original[0].name=%s\n", original[0].Name) // original[0].name=Alice
+		fmt.Printf("original[1].age=%d\n", original[1].Age) // original[1].age=21
+	}
+	shallowCopy()
+
+	// 深克隆处理
+	deepCopy := func ()  {
+		original := []*Person{
+			{"tom", 18},
+			{"jana", 20},
+		}
+		// 使用make+copy进行克隆
+		byCopySlice := make([]*Person, len(original))
+		copy(byCopySlice, original)
+		for i, p := range byCopySlice {
+			// 创建新的person对象
+			newP := &Person{ // newP类型*Person
+				Name: p.Name,
+				Age: p.Age,
+			} 
+			byCopySlice[i] = newP
+		}
+	}
+	deepCopy()
+
 	// 七、遍历切片
 	slicesAll := []any{"hello",2,6.31,true}
 	// 遍历与数组一致
@@ -775,6 +831,9 @@ func main()  {
 	for i := range A { // 每个行内有几个元素
 		C[i] = make([]int, len(B[0]))
 	}
+	// 外层 i —— 我要填哪一行？       （rows 次）
+	// 中层 j —— 我要填哪一列？       （cols 次）
+	// 内层 k —— 这个格子怎么算？     （inner 次乘法 + 累加）
 	for i := 0; i < len(A); i++ { // 取遍历 A切片的每一个行。比如：A有两行len=2。外层先处理第一行{1, 2}
 		for j := 0; j < len(B[i]); j++ { // 取row列 从B切片中纵向，有2列
 			var sum int
