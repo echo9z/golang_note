@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"sort"
 )
 
 func main() {
@@ -83,6 +84,57 @@ func main() {
 	fmt.Println(string(bytes.Trim([]byte("##hi##"), "#")))    // hi
 	fmt.Println(string(bytes.TrimPrefix([]byte("Mr.Tom"), []byte("Mr.")))) // Tom 去除匹配前缀字符串
 
+	// 查找子切片首次出现的位置
+	data3 := []byte("hello str,hello str go golang")
+	fmt.Println(bytes.Index(data3, []byte("hello"))) // idx: 0 第一次出现的起始下标
+	fmt.Println(bytes.Index(data3, []byte("str"))) // 6 第7处
+	fmt.Println(bytes.Index(data3, []byte("ok"))) // -1 没有找到
+	fmt.Println(bytes.Index(data3, []byte("")))      // 0，空子串总是匹配在起始位置
 
+	// 最后一次出现位置
+	fmt.Println(bytes.LastIndex(data3, []byte("hello"))) // 10
+	fmt.Println(bytes.LastIndex(data3, []byte("ok"))) // -1 没有找到
 
+	// bytes.IndexByte — 查找单个字节，比 Index 更快
+	data4 := []byte("hello str,hello str, go golang")
+	fmt.Println(bytes.IndexByte(data4, ',')) // 9
+	fmt.Println(bytes.IndexByte(data4, 'z')) // -1 没有找到
+
+	rest = data4
+	// 典型用法：按分隔符手动切分一段，不分配额外内存
+	for {
+		idx := bytes.IndexByte(rest, ',')
+		if idx == -1 { // 没有找到, 结束循环，输出剩余的字符串
+			fmt.Println(string(rest)) // 最后一段
+			break
+		}
+		fmt.Println(string(rest[:idx]))
+		rest = rest[idx+1:]
+	}
+	// hello str
+	// hello str
+	// go golang
+
+	// bytes.Compare — 逐字节字典序比较，返回 -1 / 0 / 1
+	fmt.Println(bytes.Compare([]byte("a"), []byte("b"))) // -1 a<b 97<98
+	fmt.Println(bytes.Compare([]byte("c"), []byte("b"))) // 1 c>b 99>98
+	fmt.Println(bytes.Compare([]byte("a"), []byte("a"))) // 0 97=97
+	fmt.Println(bytes.Compare([]byte("apple"), []byte("b"))) // -1，逐个比较 Unicode 字母值
+
+	// bytes.Compare 结合 sort.Slice 实现切片排序
+	words := [][]byte{
+		[]byte("banana"),
+		[]byte("cherry"),
+		[]byte("apple"),
+	}
+	// sort.Slice 是 Go 里最常用的排序函数，能排序任意类型的切片
+	// 返回 true → 元素 i 放在 j 前面，
+	// 返回 false → 元素 i 放在 j 后面（或相等）
+	sort.Slice(words, func(i, j int) bool {
+		return bytes.Compare(words[i], words[j]) < 0 // 从小到大，升序
+	})
+	fmt.Printf("%s\n",words) // [apple banana cherry]
+	for _, w := range words {
+    fmt.Println(string(w)) // apple / banana / cherry
+	}
 }
