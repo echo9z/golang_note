@@ -2357,7 +2357,6 @@ fmt.Println(string(joined)) // a-b-c-d
 ```
 
 
-
 #### 字符串
 字符串是 UTF-8 字符的一个序列（当字符为 ASCII 码时则占用 1 个字节，其它字符根据需要占用 2-4 个字节）。字符串是只读的字节切片，不可变字节序列，通常包含 UTF-8 编码的 Unicode 文本，但可以包含任意字节。
 Go 中的字符串也可能根据需要，占用 1 至 4 个字节，这与其它语言如 C++、Java 或者 Python 不同（Java 始终使用 2 个字节）。Go 这样做的好处是不仅减少了内存和硬盘空间占用，同时也不用像其它语言那样需要对使用 UTF-8 字符集的文本进行编码和解码。
@@ -2480,6 +2479,37 @@ Go中有三个相关概念需要区分：
 - **byte**：单个字节（uint8的别名）
 - **rune**：Unicode代码点（int32的别名）
 - **string**：UTF-8编码的字节序列
+
+```go
+ss5 := "你好中AAAAi"
+// 字符串转换
+bytes := []byte(ss5) // 字符串转换为字节切片 存放字节码
+runes := []rune(ss5) // 转换为rune字符切片  存放unicode码
+fmt.Println("bytes and runes", bytes, runes)
+```
+
+##### 字符串通过索引进行访问
+使用 `substr := str[start:end]` 可以从字符串从索引 `start` 开始到 `end-1` 位置的子字符串。同样的，`str[start:]` 表示获取从 `start` 开始到 `len(str)-1` 位置的子字符串。而 `str[:end]` 表示获取从 0 开始到 end-1 的子字符串。
+
+```go
+// 字符串通过索引进行访问
+var str3 string = "Hello世界"
+fmt.Printf("字节长度：%d \n", len(str3))                    // 11
+fmt.Printf("字节长度：%d \n", utf8.RuneCountInString(str3)) // 7
+// 通过索引访问是字节，
+fmt.Printf("s[0]=%c 字节值：%d\n", str3[0], str3[0])
+fmt.Printf("s[5]=%c 字节值：%d\n", str3[5], str3[5]) // 访问”世” s[5]=ä 字节值：228，访问包含 3 个字节中的 1 个
+// 通过切片方式,截取多个字节访问范文，但存在可能乱码问题
+fmt.Printf("s[0:6]=%s\n", str3[0:6]) // 左包右闭0~5 s[0:6]=Hello�
+fmt.Printf("s[0:8]=%s\n", str3[0:8]) // s[0:8]=Hello世
+fmt.Printf("s[5:8]=%s\n", str3[5:8]) // 4~7 s[5:8]=世
+```
+
+##### 字符串和切片的内存结构
+在内存中，一个字符串实际上是一个双字结构，即一个指向实际数据的指针和记录字符串长度的整数。
+字符串 `string s = "hello"` 和子字符串 `t = s[2:3]` 在内存中的结构：
+
+![](./go.assets/img/string_memory.png)
 
 ##### 字符串遍历
 通过函数 `len()` 来获取字符串所占的字节长度进行遍历。
@@ -6421,3 +6451,8 @@ for i := 0; i < 10; i++ {
 }
 ```
 关键字 `continue` 只能被用于 for 循环中。
+
+### map
+map 是一种特殊的数据结构：一种元素对（pair）的无序集合，pair 的一个元素是 key，对应的另一个元素是 value，所以这个结构也称为关联数组或字典。这是一种快速寻找值的理想结构：给定 key，对应的 value 可以迅速定位。
+
+map 这种数据结构在其他编程语言中也称为字典（java）、HashMap 和 HashTable 等。
