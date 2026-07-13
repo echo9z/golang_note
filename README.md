@@ -6453,7 +6453,7 @@ for i := 0; i < 10; i++ {
 关键字 `continue` 只能被用于 for 循环中。
 
 ### map
-map 是一种特殊的数据结构：一种元素对（pair）的无序集合，pair 的一个元素是 key，对应的另一个元素是 value，所以这个结构也称为关联数组或字典。这是一种快速寻找值的理想结构：给定 key，对应的 value 可以迅速定位。
+map 是一种特殊的数据结构：一种元素对（pair）的无序集合，pair 的一个元素是 key，对应的另一个元素是 value，所以这个结构也称为关联数组或字典。这是一种快速寻找值的理想结构：给定 key，对应的 value 可以迅速定位。[map](https://zhuanlan.zhihu.com/p/631727274)
 
 map 这种数据结构在其他编程语言中也称为字典（java）、HashMap 和 HashTable 等。
 
@@ -6488,6 +6488,7 @@ scores["math"] = 100
 scores["english"] = 95
 fmt.Println(scores) // map[english:95 math:100]
 fmt.Println(scores["math"]) // 100
+
 // 指定初始容量（性能优化）
 // 预计这个 map 大概要存放 1000 个左右的键值对，请提前分配好足够的内存，避免后面频繁扩容。”
 // 但这只是一个建议值，不是严格的容量上限。完全可以往里面存超过 1000 个元素，map 会自动扩容，不会有任何报错，也不会受这个 1000 的限制。
@@ -6520,7 +6521,7 @@ scores2["math"] = 99 // 修改已存在的key，则覆盖
 fmt.Println(scores2["math"]) // 99
 ```
 
-##### 获取值
+##### 获取值，判断某个键是否存在
 ```go
 val := scores2["english"] //  如果 key 不存在，返回零值（int 为 0）
 fmt.Println(val) // 0
@@ -6585,4 +6586,120 @@ fmt.Println(len(mapS)) // 4
 ```
 
 #### map遍历
+```go
+mp3 := map[string]int{
+   "a": 0,
+   "b": 1,
+   "c": 2,
+}
+// map 的 for range 遍历顺序是随机的，是由于其底层哈希表实现和遍历时的随机起始位置设计决定的。
+for key, val := range mp3 {
+   fmt.Printf("map[\"%s\"]: %d\n", key, val) // map["a"]: 0
+}
+// 只遍历键：
+for key := range mp3 {
+   fmt.Printf("map[\"%s\"]\n", key)
+}
+```
 
+在go中，map 的 `for range` 遍历顺序是随机的，这是由于其底层哈希表实现和遍历时的随机起始位置设计决定的。若需要实现有序遍历，需通过手动处理键值对的排序逻辑。
+##### map 无序的根本原因
+1. **哈希表结构**：map 的底层实现是哈希表，插入数据时通过哈希函数分散存储，导致物理存储顺序与插入顺序无关。
+2. **随机起始位置**：每次遍历 map 时，Go 会生成随机数选择起始桶（bucket）和偏移量，从而打乱遍历顺序。
+3. **设计意图**：Go 通过随机化遍历顺序，明确告知开发者“map 无序”，避免开发者依赖不稳定顺序导致潜在问题。
+
+##### map有序遍历
+方式一：按key排序遍历，标准库 `sort` 排序
+```go
+mp4 := map[string]int{
+   "a": 0,
+   "b": 1,
+   "c": 2,
+}
+// 将key取出，放置slice切片中
+keys := make([]string, 0, len(mp4)) // 取出容量与mp4长度一致
+for key := range mp4 { // 遍历map4,将key放置slice切片中
+   keys = append(keys, key)
+}
+
+// 使用sort包对slice切片 string类型进行排序
+sort.Strings(keys) // Ints / Float64s 同理
+
+// 按keys中排序后的顺序进行遍历map
+for _, k := range keys {
+   fmt.Printf("map[\"%s\"]:%d\n",k, mp4[k])
+}
+```
+
+方式二：按map的value值进行排序，通过slice 包自定义排序函数
+```go
+mp5 := map[string]int{
+ "banana": 2,
+ "apple":  1,
+ "cherry": 3,
+}
+
+keys = make([]string, 0, len(mp5)) // 取出容量与mp4长度一致
+for key := range mp5 { // 遍历map4,将key放置slice切片中
+   keys = append(keys, key)
+}
+// 在Go 1.21 及以上版本，可以使用标准库 slices 包自定义排序逻辑。
+sort.Slice(keys, func(i, j int) bool {
+   // 从小到大
+   return mp5[keys[i]] < mp5[keys[j]] // 返回true,不变key[i]和key[j]不交换顺序，返回false,key[i]和key[j]交换顺序
+})
+
+for _, k := range keys {
+   fmt.Printf("map[\"%s\"]:%d\n",k, mp5[k])
+}
+```
+
+方式三：按插入顺序遍历，维护一个插入的顺序slice切片，按插入的顺序遍历
+```go
+func main(){
+   orderMap := NewOrderedMap() // orderedMap实例
+   orderMap.Set("aaa", 1)
+   orderMap.Set("ccc", 3)
+   orderMap.Set("bbb", 2) // 在插入时已经已经o.keys中维护好插入顺序
+   orderMap.Range() // 遍历
+   // 或者使用第三方库 github.com/elliotchance/orderedmap/v2
+   // m := orderedmap.NewOrderedMap[string, int]()
+   // m.Set("banana", 3)
+   // m.Set("apple", 1) // 后插入但在前面
+   // m.Set("peach", 2)
+
+   // for _, k := range m.Keys() {
+   //       v, _ := m.Get(k)
+   //       println(k, v)
+   // }
+}
+
+// 方式三：按插入顺序遍历
+// map 本身不记录插入顺序。如果业务需要保持插入顺序（比如配置、日志），必须额外维护一个 slice 来记录顺序：
+type OrderedMap struct {
+   keys []string // 维护插入的顺序
+   values map[string]int
+}
+
+func NewOrderedMap() *OrderedMap {
+   return &OrderedMap{values: make(map[string]int)}
+}
+
+func (o *OrderedMap)Set(k string, v int)  {
+   // 将传入k存放在order的维护keys切片中
+   if _, ok := o.values[k]; !ok {
+      o.keys = append(o.keys, k)
+   }
+   // v值存放o.map中
+   o.values[k] = v
+}
+
+// 按o.keys中的顺序进行遍历
+func (o *OrderedMap)Range()  {
+   for _, k := range o.keys {
+      fmt.Printf("map[\"%s\"]:%d\n", k, o.values[k])
+   }
+}
+```
+
+##### 并发安全 map

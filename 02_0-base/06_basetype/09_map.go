@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"math"
 	"sort"
+	"sync"
 )
-import "github.com/elliotchance/orderedmap/v2"
+
+// import "github.com/elliotchance/orderedmap/v2"
 
 func main(){
 	// Go 中的 map 是一种无序的键值对集合，底层基于哈希表实现，提供了高效的查找、插入和删除操作。
@@ -152,16 +154,94 @@ func main(){
 	orderMap.Set("ccc", 3)
 	orderMap.Set("bbb", 2) // 在插入时已经已经o.keys中维护好插入顺序
 	orderMap.Range() // 遍历
-	// 或者使用第三方库
-	m := orderedmap.NewOrderedMap[string, int]()
-	m.Set("banana", 3)
-	m.Set("apple", 1) // 后插入但在前面
-	m.Set("peach", 2)
+	// 或者使用第三方库 github.com/elliotchance/orderedmap/v2
+	// m := orderedmap.NewOrderedMap[string, int]()
+	// m.Set("banana", 3)
+	// m.Set("apple", 1) // 后插入但在前面
+	// m.Set("peach", 2)
 
-	for _, k := range m.Keys() {
-			v, _ := m.Get(k)
-			println(k, v)
+	// for _, k := range m.Keys() {
+	// 		v, _ := m.Get(k)
+	// 		println(k, v)
+	// }
+
+	// 4.并发安全 map
+	// 使用 sync.Map 配合排序（并发场景）
+	// 需并发安全且有序遍历时。
+	var sm sync.Map
+	// 写入数据
+	sm.Store("banana", 3)
+	sm.Store("apple", 1)
+	sm.Store("peach", 2)
+
+	// Range收集key存放到keys切片中
+	keys = make([]string, 0)
+	sm.Range(func(key, value any) bool {
+		// key 为any进行断言成string
+		if k, ok := key.(string); ok { // 类型为string,则添加到切片中
+			keys = append(keys, k)
+		}
+		return true // 返回 false 会提前终止遍历
+	})
+	// 在通过对 key 排序
+	sort.Strings(keys)
+	// 按排序后的 key 取值
+	for _, k := range keys {
+		if v, ok := sm.Load(k); ok {
+			fmt.Printf("%s -> %v\n",k, v)
+		}
 	}
+	/*
+	为什么非常不推荐？（核心问题）
+	① 性能严重劣化（双重锁开销）
+	sync.Map 的 Range 内部已经持有锁（或使用原子操作）遍历整个底层数据结构。
+	你在外部再调用 Load，每次 Load 又要重新加锁或走原子读。
+	相比之下，普通 map + sync.RWMutex 在遍历排序时，只需在 Range 阶段加一次读锁，提取完 Key 后即可释放锁，之后读取值甚至无需再锁（如果 map 不变），性能远超 sync.Map。
+
+	② 并发安全问题（数据漂移）
+	从调用 Range 提取 Keys，到排序，再到 Load 取值，这期间是分步的。
+	如果其他 goroutine 在这期间删除了某个 Key，你的 Load 会返回 false，导致数据缺失。
+	如果其他 goroutine 修改了某个 Key 的 Value，你取到的是最新值，虽然不报错，但严格意义上你遍历的“快照”并不一致（因为你提取 Keys 那一刻的值，和最终打印时的值可能不同）。
+
+	③ 类型断言繁琐
+	sync.Map 的 Key 和 Value都是 interface{}，提取 Keys 时必须强制类型断言（如 key.(string)），如果 Key 类型不统一，极易引发 panic。
+	*/
+	// map + sync.RWMutex 的例子
+	safeMap1 := NewSafeMap()
+	safeMap1.items["cc"] = 3
+	safeMap1.items["aa"] = 1
+	safeMap1.items["bb"] = 2
+	sKeys := safeMap1.SortedKeys()
+	for _, key := range sKeys {
+		v := safeMap1.items[key]
+		fmt.Printf("key[%s] = %d\n", key, v)
+	}
+
+	// map + sync.RWMutex 的并发例子
+	safeMap := NewSafeMap()
+	var wg sync.WaitGroup
+
+	// 5 个 goroutine 并发写
+	for i := 0; i < 5; i++ {
+		wg.Add(1)
+		go func (i int)  {
+			defer wg.Done()
+			safeMap.Set(fmt.Sprintf("key%d", i), i)
+		}(i)
+	}
+	// 5 个 goroutine 并发读
+	for i := 0; i < 5; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			if v, ok := safeMap.Get(fmt.Sprintf("key%d", i)); ok {
+				fmt.Printf("key%d = %d\n", i, v)
+			}
+		}(i)
+	}
+
+	wg.Wait()
+	fmt.Println("全部完成")
 
 }
 // 方式三：按插入顺序遍历
@@ -190,3 +270,55 @@ func (o *OrderedMap)Range()  {
 		fmt.Printf("map[\"%s\"]:%d\n", k, o.values[k])
 	}
 }
+
+// 方式五：map + sync.RWMutex 的例子
+// SafeMap 把普通map 和读写锁封装在一起，实现并发安全
+type SafeMap struct {
+	mu sync.RWMutex  // 读写锁
+	items map[string]int // 普通map
+}
+
+// NewSafeMap 构造函数，返回一个实例
+func NewSafeMap() *SafeMap{
+	return &SafeMap{ items: make(map[string]int) }
+}
+
+func (s *SafeMap) SortedKeys() []string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	// 创建一个与map容量一样长度的key切片
+	keys := make([]string, len(s.items))
+	for key := range s.items {
+		keys = append(keys, key)
+	}
+	// 在sort进行排序
+	sort.Strings(keys)
+	return keys
+  // 遍历时：
+	// sm.mu.RLock() -> 拿到 keys -> 遍历 keys 读取 sm.m[key] -> sm.mu.RUnlock()
+  // 全程加锁，保证一次性快照一致性，且只加一次锁。
+}
+
+// Set 写入：lock写入锁，独占，每次只允许一个goroutine写入对于key值
+func (s SafeMap)Set(key string, val interface{})  {
+	s.mu.Lock() // 上锁
+	defer s.mu.Unlock() // 函数如何退出，解锁操作都会被执行
+	if v, ok := val.(int); ok {
+		s.items[key] = v
+	}
+}
+
+// Get 读取：用读锁（共享，多个 goroutine 可同时读）
+func (s *SafeMap) Get(key string) (int, bool) {
+	s.mu.RLock() // 添加读锁
+	defer s.mu.RUnlock()
+	v, ok := s.items[key]
+	return v, ok
+}
+
+func (s *SafeMap) delete(key string)  {
+	s.mu.Lock() // 添加写锁
+	defer s.mu.Unlock()
+	delete(s.items, key)
+}
+
