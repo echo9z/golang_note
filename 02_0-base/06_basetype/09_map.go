@@ -206,7 +206,7 @@ func main(){
 	③ 类型断言繁琐
 	sync.Map 的 Key 和 Value都是 interface{}，提取 Keys 时必须强制类型断言（如 key.(string)），如果 Key 类型不统一，极易引发 panic。
 	*/
-	// map + sync.RWMutex 的例子
+	// map + sync.RWMutex 的例子一
 	safeMap1 := NewSafeMap()
 	safeMap1.items["cc"] = 3
 	safeMap1.items["aa"] = 1
@@ -217,7 +217,7 @@ func main(){
 		fmt.Printf("key[%s] = %d\n", key, v)
 	}
 
-	// map + sync.RWMutex 的并发例子
+	// map + sync.RWMutex 的并发例子二
 	safeMap := NewSafeMap()
 	var wg sync.WaitGroup
 
@@ -283,6 +283,7 @@ func NewSafeMap() *SafeMap{
 	return &SafeMap{ items: make(map[string]int) }
 }
 
+// 将SafeMap中key取出，进行排序，返回排好序的切片key
 func (s *SafeMap) SortedKeys() []string {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -316,6 +317,7 @@ func (s *SafeMap) Get(key string) (int, bool) {
 	return v, ok
 }
 
+// Delete 删除
 func (s *SafeMap) delete(key string)  {
 	s.mu.Lock() // 添加写锁
 	defer s.mu.Unlock()
