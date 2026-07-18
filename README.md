@@ -6702,7 +6702,7 @@ func (o *OrderedMap)Range()  {
 }
 ```
 
-##### 并发安全 map
+#### 并发安全 map
 在 Go 中实现并发安全的 Map，主要有两种方式：标准库的 `sync.Map` 和普通的 `map` 加锁。
 使用 `sync.Map` 配合排序（并发场景）
 ```go
@@ -6839,4 +6839,133 @@ func (s *SafeMap) delete(key string)  {
    defer s.mu.Unlock()
    delete(s.items, key)
 }
+```
+
+
+#### map的嵌套结构
+map的值为切片slice
+```go
+groups := make(map[string][]int, 0)
+groups["event"] = append(groups["event"], 1, 2, 3)
+fmt.Printf("map[\"event\"]=%v\n", groups["event"])
+
+cnMap := make(map[string][]string, 3)
+key := "zh-CN"
+value, ok := cnMap[key]
+if !ok {
+   value = make([]string, 5) // 对应key中元素切片的初始化
+}
+value = append(value, "tom", "jack")
+```
+
+
+#### map实现Set集合
+`Set` 对象是值的合集（collection）。集合（set）中的元素**只会出现一次**，即集合中的元素是唯一的。
+在 Go 中，**没有内置的 `Set` 类型**，通常使用 **`map[T]struct{}`** 来实现 Set。由于 Go 的 **map 本身就是无序的（unordered）**，因此基于 map 实现的 Set 也是**无序集合（unordered set）**。
+
+ 为什么用 `map[T]struct{}`实现类似set集合
+- **键的唯一性**：map 的键不能重复，天然满足 Set 的元素互异性。    
+- **零内存占用**：`struct{}` 是空结构体，不占用任何内存（`unsafe.Sizeof(struct{}{})` 为 0），比 `map[T]bool` 更节省空间。
+- **无序性**：map 遍历顺序是随机的，与插入顺序无关，符合 Set 的无序特性。
+
+```go
+// 创建一个string类型的set
+set := make(map[string]struct{}, 0) // 使用map[T]struct{}来替代，值类型为空结构体
+// 添加元素     set = new HashSet<>() set.add("苹果");理解为java中的set.add
+set["apple"] = struct{}{} // 一个空结构体类型的值
+set["banana"] = struct{}{}
+set["pear"] = struct{}{}
+set["orange"] = struct{}{}
+set["apple"] = struct{}{} // 重复添加，不会报错，但 Set 中仍然只有一个 "apple"
+
+// 检查元素是否存在
+if _, exists := set["apple"]; exists {
+   fmt.Println("apple in the set")
+}
+
+// 删除元素
+delete(set, "orange")
+// 遍历
+for key, v := range set {
+   // key相当于获取set中的值，v输出对应的空的结构体{}
+   fmt.Println(key, v) // apple {}
+}
+// 获取元素个数
+length = len(set)
+fmt.Println("获取set集合个数", length)
+```
+
+基于 map 自定义一个 Set 类型
+```go
+// 定义一个通用 Set 类型
+type Set[T comparable] map[T]struct{}
+//   |  |            |  |
+//   |  |            |  +-- 底层类型：一个map，键为T，值为 struct{}空结构体类型
+//   |  |            +-- T 用在底层类型中
+//   |  +-- 方括号内是类型参数
+//   +-- 定义一个新类型，名为 Set
+// struct{} 是一个匿名结构体类型
+// Set[T comparable] Go 语言 1.18 版本引入的泛型（Generics）语法
+
+// 初始化创建新的Set实例对象，返回Set类型实例
+func NewSet[T comparable]() Set[T] {// [T comparable]类型参数。比如map[string]，对[]中参数类型进行限制
+   return make(Set[T]) // 比如T是string make(map[string]struct{})，返回一个map
+}
+// 添加一个元素
+func (s Set[T]) Add(ele T) {
+   s[ele] = struct{}{}
+}
+// 删除某个元素
+func (s Set[T]) Remove(ele T)  {
+   delete(s, ele)
+}
+// 检查是否存在
+func (s Set[T]) Contains(ele T) bool {
+   _, ok := s[ele]
+   return ok
+}
+
+// 返回所有元素（无序）切片
+func (s Set[T]) getAll() []T {
+   allSetElement := make([]T, 0, len(s))
+   for key := range s {
+      allSetElement = append(allSetElement, key)
+   }
+   return allSetElement
+}
+
+func main(){
+   var fruits Set[string] = NewSet[string]()
+   fruits.Add("apple")
+   fruits.Add("orange")
+   fruits.Add("pear")
+   fruits.Add("apple")
+
+   fmt.Println(fruits.Contains("apple")) // true
+   fruits.Remove("apple")
+   fmt.Println(fruits.Contains("apple")) // false
+
+   // 返回所有set元素
+   sliceFir := fruits.getAll()
+   for _, v := range sliceFir {
+      fmt.Printf("set for value: \"%s\"\n", v)
+   }
+}
+```
+
+去重集合（利用map键的唯一性）
+Go 没有内置 Set，可以用 `map[T]struct{}` 或 `map[T]bool` 模拟Set：
+```go
+ids := []int{1, 2, 2, 3, 4, 4, 4}
+idSet := make(map[int]struct{}, 0)
+
+for _, v := range ids {
+   idSet[v] = struct{}{}
+}
+
+uniqueIDs := make([]int, 0, len(idSet))
+for key := range idSet {
+      uniqueIDs = append(uniqueIDs, key)
+}
+fmt.Printf("取重后：%v\n", uniqueIDs) // 取重后：[1 2 3 4]
 ```

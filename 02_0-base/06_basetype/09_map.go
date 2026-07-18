@@ -9,13 +9,13 @@ import (
 
 // import "github.com/elliotchance/orderedmap/v2"
 
-func main(){
+func main() {
 	// Go 中的 map 是一种无序的键值对集合，底层基于哈希表实现，提供了高效的查找、插入和删除操作。
 
 	// 1.声明与初始化
 	// var 声明，得到 nil map（不能写入，只能读）
-	var m1 map[string]int  // key为string val为map[key]
-	v1 := m1["score"] // 读取不存在的 key 返回零值，不会 panic
+	var m1 map[string]int         // key为string val为map[key]
+	v1 := m1["score"]             // 读取不存在的 key 返回零值，不会 panic
 	fmt.Printf("score: %v\n", v1) // score: 0
 	// m1["score"] = 98 // panic: assignment to entry in nil map  m1为nil零值会抛出panic
 
@@ -23,21 +23,20 @@ func main(){
 	scores := make(map[string]float64)
 	scores["math"] = 100
 	scores["english"] = 95
-	fmt.Println(scores) // map[english:95 math:100]
+	fmt.Println(scores)         // map[english:95 math:100]
 	fmt.Println(scores["math"]) // 100
 	// 指定初始容量（性能优化）
 	// 预计这个 map 大概要存放 1000 个左右的键值对，请提前分配好足够的内存，避免后面频繁扩容。”
 	// 但这只是一个建议值，不是严格的容量上限。完全可以往里面存超过 1000 个元素，map 会自动扩容，不会有任何报错，也不会受这个 1000 的限制。
-	users := make(map[string]string, 1000)  // 预分配约1000个元素的空间
+	users := make(map[string]string, 1000) // 预分配约1000个元素的空间
 	users["tom"] = "ok"
 	users["jack"] = "no"
-	fmt.Println(users, len(users)) //map[jack:no tom:ok] 2 
+	fmt.Println(users, len(users)) //map[jack:no tom:ok] 2
 	// 注意：map只有 len(m) 获取长度，没有 cap()。
-
 
 	// 字面量初始化
 	colors := map[string]string{
-		"red": "#FF0000",
+		"red":  "#FF0000",
 		"gree": "#00FF00",
 		"blue": "#0000FF",
 	}
@@ -48,12 +47,12 @@ func main(){
 	scores2 := make(map[string]float64)
 
 	// 新增key和修改
-	scores2["math"] = 100.5 // 新增一个不存在key math
-	scores2["math"] = 99 // 修改已存在的key，则覆盖
+	scores2["math"] = 100.5      // 新增一个不存在key math
+	scores2["math"] = 99         // 修改已存在的key，则覆盖
 	fmt.Println(scores2["math"]) // 99
 	// 获取值
 	val := scores2["english"] //  如果 key 不存在，返回零值（int 为 0）
-	fmt.Println(val) // 0
+	fmt.Println(val)          // 0
 	// 使用comma-ok 模式，来判断key是否存在
 	if v, ok := scores2["math"]; ok {
 		fmt.Printf("math存在：%v\n", v) // math存在：99
@@ -78,7 +77,7 @@ func main(){
 	fmt.Println(mp) // map[b:1 c:2 d:3]
 	// 注意的是，如果值为 NaN，甚至没法删除该键值对。
 	mp2 := make(map[float64]string, 10)
-	// NaN 是 IEEE 754 浮点数标准中定义的一种特殊值，用来表示"无意义的运算结果" 
+	// NaN 是 IEEE 754 浮点数标准中定义的一种特殊值，用来表示"无意义的运算结果"
 	// 0 / 0, 对负数开平方 math.Sqrt(-1),  ∞ - ∞, 0 × ∞
 	mp2[math.NaN()] = "a"
 	mp2[math.NaN()] = "b"
@@ -88,7 +87,7 @@ func main(){
 	// 所以 map 认为"这是一个全新的 key"，于是连续插入三条记录。
 	// 同理，删除也删不掉：
 	delete(mp2, math.NaN()) // 无效！因为传入的 NaN != 已存储的 Na
-	fmt.Println(mp2) // 仍然是 map[NaN:a NaN:b NaN:c]
+	fmt.Println(mp2)        // 仍然是 map[NaN:a NaN:b NaN:c]
 
 	// 通过len获取长度
 	scores2["pe"] = 60
@@ -118,25 +117,25 @@ func main(){
 	}
 	// 将key取出，放置slice切片中
 	keys := make([]string, 0, len(mp4)) // 取出容量与mp4长度一致
-	for key := range mp4 { // 遍历map4,将key放置slice切片中
+	for key := range mp4 {              // 遍历map4,将key放置slice切片中
 		keys = append(keys, key)
 	}
 	// 使用sort包对slice切片排序
 	sort.Strings(keys) // Ints / Float64s 同理
 	// 按keys中排序后的顺序进行遍历map
 	for _, k := range keys {
-		fmt.Printf("map[\"%s\"]:%d\n",k, mp4[k])
+		fmt.Printf("map[\"%s\"]:%d\n", k, mp4[k])
 	}
 
 	mp5 := map[string]int{
-    "banana": 2,
-    "apple":  1,
-    "cherry": 3,
+		"banana": 2,
+		"apple":  1,
+		"cherry": 3,
 	}
 
 	// 方式二：按map的value值进行排序
 	keys = make([]string, 0, len(mp5)) // 取出容量与mp4长度一致
-	for key := range mp5 { // 遍历map4,将key放置slice切片中
+	for key := range mp5 {             // 遍历map4,将key放置slice切片中
 		keys = append(keys, key)
 	}
 	// 在Go 1.21 及以上版本，可以使用标准库 slices 包自定义排序逻辑。
@@ -145,7 +144,7 @@ func main(){
 		return mp5[keys[i]] < mp5[keys[j]] // 返回true,不变key[i]和key[j]不交换顺序，返回false,key[i]和key[j]交换顺序
 	})
 	for _, k := range keys {
-		fmt.Printf("map[\"%s\"]:%d\n",k, mp5[k])
+		fmt.Printf("map[\"%s\"]:%d\n", k, mp5[k])
 	}
 
 	// 方式三：按插入顺序遍历
@@ -153,7 +152,7 @@ func main(){
 	orderMap.Set("aaa", 1)
 	orderMap.Set("ccc", 3)
 	orderMap.Set("bbb", 2) // 在插入时已经已经o.keys中维护好插入顺序
-	orderMap.Range() // 遍历
+	orderMap.Range()       // 遍历
 	// 或者使用第三方库 github.com/elliotchance/orderedmap/v2
 	// m := orderedmap.NewOrderedMap[string, int]()
 	// m.Set("banana", 3)
@@ -188,23 +187,23 @@ func main(){
 	// 按排序后的 key 取值
 	for _, k := range keys {
 		if v, ok := sm.Load(k); ok {
-			fmt.Printf("%s -> %v\n",k, v)
+			fmt.Printf("%s -> %v\n", k, v)
 		}
 	}
 	/*
-	为什么非常不推荐？（核心问题）
-	① 性能严重劣化（双重锁开销）
-	sync.Map 的 Range 内部已经持有锁（或使用原子操作）遍历整个底层数据结构。
-	你在外部再调用 Load，每次 Load 又要重新加锁或走原子读。
-	相比之下，普通 map + sync.RWMutex 在遍历排序时，只需在 Range 阶段加一次读锁，提取完 Key 后即可释放锁，之后读取值甚至无需再锁（如果 map 不变），性能远超 sync.Map。
+		为什么非常不推荐？（核心问题）
+		① 性能严重劣化（双重锁开销）
+		sync.Map 的 Range 内部已经持有锁（或使用原子操作）遍历整个底层数据结构。
+		你在外部再调用 Load，每次 Load 又要重新加锁或走原子读。
+		相比之下，普通 map + sync.RWMutex 在遍历排序时，只需在 Range 阶段加一次读锁，提取完 Key 后即可释放锁，之后读取值甚至无需再锁（如果 map 不变），性能远超 sync.Map。
 
-	② 并发安全问题（数据漂移）
-	从调用 Range 提取 Keys，到排序，再到 Load 取值，这期间是分步的。
-	如果其他 goroutine 在这期间删除了某个 Key，你的 Load 会返回 false，导致数据缺失。
-	如果其他 goroutine 修改了某个 Key 的 Value，你取到的是最新值，虽然不报错，但严格意义上你遍历的“快照”并不一致（因为你提取 Keys 那一刻的值，和最终打印时的值可能不同）。
+		② 并发安全问题（数据漂移）
+		从调用 Range 提取 Keys，到排序，再到 Load 取值，这期间是分步的。
+		如果其他 goroutine 在这期间删除了某个 Key，你的 Load 会返回 false，导致数据缺失。
+		如果其他 goroutine 修改了某个 Key 的 Value，你取到的是最新值，虽然不报错，但严格意义上你遍历的“快照”并不一致（因为你提取 Keys 那一刻的值，和最终打印时的值可能不同）。
 
-	③ 类型断言繁琐
-	sync.Map 的 Key 和 Value都是 interface{}，提取 Keys 时必须强制类型断言（如 key.(string)），如果 Key 类型不统一，极易引发 panic。
+		③ 类型断言繁琐
+		sync.Map 的 Key 和 Value都是 interface{}，提取 Keys 时必须强制类型断言（如 key.(string)），如果 Key 类型不统一，极易引发 panic。
 	*/
 	// map + sync.RWMutex 的例子一
 	safeMap1 := NewSafeMap()
@@ -224,7 +223,7 @@ func main(){
 	// 5 个 goroutine 并发写
 	for i := 0; i < 5; i++ {
 		wg.Add(1)
-		go func (i int)  {
+		go func(i int) {
 			defer wg.Done()
 			safeMap.Set(fmt.Sprintf("key%d", i), i)
 		}(i)
@@ -243,11 +242,137 @@ func main(){
 	wg.Wait()
 	fmt.Println("全部完成")
 
+	// 5.map的嵌套结构
+	// 5.1map的值是 切片slice
+	groups := make(map[string][]int, 0)
+	groups["event"] = append(groups["event"], 1, 2, 3)
+	fmt.Printf("map[\"event\"]=%v\n", groups["event"])
+
+	cnMap := make(map[string][]string, 3)
+	key := "zh-CN"
+	value, ok := cnMap[key]
+	if !ok {
+		value = make([]string, 5) // 对应key中元素切片的初始化
+	}
+	value = append(value, "tom", "jack")
+
+	type User struct {
+		Name string
+		Age  int
+	}
+	// 5.2map的值是 struct结构
+	users1 := make(map[int]User, 0)
+	users1[1] = User{Name: "tom", Age: 18}
+	// Go 中 map 的值是「不可寻址」(not addressable) 的。users1[1] 返回的是值的一个拷贝，而不是对 map 内部实际存储元素的引用，所以无法直接取它的地址、也就无法就地修改它的字段
+	// users1[1].Age = 19	cannot assign to struct field users1[1].Age in map
+	users2 := make(map[int]*User)
+	users2[1] = &User{Name: "jack", Age: 29}
+	users2[1].Age = 20 //  users2[1]是 *User，修改的是指向的同一块内存
+
+	//5.3map的值是 map
+	students := map[string]map[string]int{
+		"Alice": {"math": 98, "english": 100, "pe": 60},
+		"Jack":  {"math": 90, "english": 85, "pe": 80},
+	}
+	score := students["Alice"]["math"]
+	fmt.Printf("Alice: math=%d\n", score) // Alice: math=98
+
+	students2 := make(map[string]map[string]int, 2)
+
+	if _, ok := students2["tom"]; !ok {
+		students2["tom"] = map[string]int{"math": 100, "english": 121, "pe": 60}
+	}
+	score = students2["tom"]["math"]
+	fmt.Printf("tom: math=%d\n", score) // tom: math=100
+
+	//5.4map的键为 struct结构体
+	type Point struct{ X, Y int }
+	m := map[Point]string{
+		{2, 3}: "A", // 点A
+		{4, 6}: "B", // 点B
+	}
+	fmt.Printf("点%s\n", m[Point{2, 3}]) // 点A
+
+	// 5.5切片中的元素类型为map类型的切片
+	mapSlice := make([]map[string]interface{}, 3, 5) // 创建切片类型为map
+	// 按照mapSlice切片长度为每个元素初始化map
+	for idx := range mapSlice {
+		mapSlice[idx] = make(map[string]interface{})
+	}
+	mapSlice[0]["name"] = "tom"
+	mapSlice[0]["age"] = 15
+	mapSlice[1]["name"] = "tom"
+	mapSlice[1]["age"] = 18
+	for idx, v := range mapSlice {
+		fmt.Printf("map[%d]=%v\n", idx, v)
+	}
+
+	// 集合（set）中的元素只会出现一次，即集合中的元素是唯一的。
+	// 6.在 Go 中，没有内置的 Set 类型，通常使用 map[T]struct{} 来实现 Set
+	// 创建一个string类型的set
+	set := make(map[string]struct{}, 0) // 使用map[T]struct{}来替代，值类型为空结构体
+	// 添加元素     set = new HashSet<>() set.add("苹果");理解为java中的set.add
+	set["apple"] = struct{}{} // 一个空结构体类型的值
+	set["banana"] = struct{}{}
+	set["pear"] = struct{}{}
+	set["orange"] = struct{}{}
+	set["apple"] = struct{}{} // 重复添加，不会报错，但 Set 中仍然只有一个 "apple"
+
+	// 检查元素是否存在
+	if _, exists := set["apple"]; exists {
+		fmt.Println("apple in the set")
+	}
+
+	// 删除元素
+	delete(set, "orange")
+	// 遍历
+	for key, v := range set {
+		// key相当于获取set中的值，v输出对应的空的结构体{}
+		fmt.Println(key, v) // apple {}
+	}
+	// 获取元素个数
+	length = len(set)
+	fmt.Println("获取set集合个数", length)
+
+	//6.2 自定义封装的Set集合
+	var fruits Set[string] = NewSet[string]()
+	fruits.Add("apple")
+	fruits.Add("orange")
+	fruits.Add("pear")
+	fruits.Add("apple")
+
+  fmt.Println(fruits.Contains("apple")) // true
+	fruits.Remove("apple")
+	fmt.Println(fruits.Contains("apple")) // false
+
+	// 返回所有set元素
+	sliceFir := fruits.getAll()
+	for _, v := range sliceFir {
+		fmt.Printf("set for value: \"%s\"\n", v)
+	}
+
+	// 6.3去重集合（利用键的唯一性）
+	ids := []int{1, 2, 2, 3, 4, 4, 4}
+	idSet := make(map[int]struct{}, 0)
+
+	for _, v := range ids {
+		idSet[v] = struct{}{}
+	}
+
+	uniqueIDs := make([]int, 0, len(idSet))
+	for key := range idSet {
+			uniqueIDs = append(uniqueIDs, key)
+	}
+	fmt.Printf("取重后：%v\n", uniqueIDs) // 取重后：[1 2 3 4]
+
+
+
 }
+
 // 方式三：按插入顺序遍历
 // map 本身不记录插入顺序。如果业务需要保持插入顺序（比如配置、日志、LRU），必须额外维护一个 slice 来记录顺序：
 type OrderedMap struct {
-	keys []string // 维护插入的顺序
+	keys   []string // 维护插入的顺序
 	values map[string]int
 }
 
@@ -255,7 +380,7 @@ func NewOrderedMap() *OrderedMap {
 	return &OrderedMap{values: make(map[string]int)}
 }
 
-func (o *OrderedMap)Set(k string, v int)  {
+func (o *OrderedMap) Set(k string, v int) {
 	// 将传入k存放在order的维护keys切片中
 	if _, ok := o.values[k]; !ok {
 		o.keys = append(o.keys, k)
@@ -265,7 +390,7 @@ func (o *OrderedMap)Set(k string, v int)  {
 }
 
 // 按o.keys中的顺序进行遍历
-func (o *OrderedMap)Range()  {
+func (o *OrderedMap) Range() {
 	for _, k := range o.keys {
 		fmt.Printf("map[\"%s\"]:%d\n", k, o.values[k])
 	}
@@ -274,13 +399,13 @@ func (o *OrderedMap)Range()  {
 // 方式五：map + sync.RWMutex 的例子
 // SafeMap 把普通map 和读写锁封装在一起，实现并发安全
 type SafeMap struct {
-	mu sync.RWMutex  // 读写锁
+	mu    sync.RWMutex   // 读写锁
 	items map[string]int // 普通map
 }
 
 // NewSafeMap 构造函数，返回一个实例
-func NewSafeMap() *SafeMap{
-	return &SafeMap{ items: make(map[string]int) }
+func NewSafeMap() *SafeMap {
+	return &SafeMap{items: make(map[string]int)}
 }
 
 // 将SafeMap中key取出，进行排序，返回排好序的切片key
@@ -295,14 +420,14 @@ func (s *SafeMap) SortedKeys() []string {
 	// 在sort进行排序
 	sort.Strings(keys)
 	return keys
-  // 遍历时：
+	// 遍历时：
 	// sm.mu.RLock() -> 拿到 keys -> 遍历 keys 读取 sm.m[key] -> sm.mu.RUnlock()
-  // 全程加锁，保证一次性快照一致性，且只加一次锁。
+	// 全程加锁，保证一次性快照一致性，且只加一次锁。
 }
 
 // Set 写入：lock写入锁，独占，每次只允许一个goroutine写入对于key值
-func (s SafeMap)Set(key string, val interface{})  {
-	s.mu.Lock() // 上锁
+func (s SafeMap) Set(key string, val interface{}) {
+	s.mu.Lock()         // 上锁
 	defer s.mu.Unlock() // 函数如何退出，解锁操作都会被执行
 	if v, ok := val.(int); ok {
 		s.items[key] = v
@@ -318,9 +443,78 @@ func (s *SafeMap) Get(key string) (int, bool) {
 }
 
 // Delete 删除
-func (s *SafeMap) delete(key string)  {
+func (s *SafeMap) delete(key string) {
 	s.mu.Lock() // 添加写锁
 	defer s.mu.Unlock()
 	delete(s.items, key)
 }
+
+// 6.定义一个通用 Set 类型
+type Set[T comparable] map[T]struct{}
+//   |  |            |  |
+//   |  |            |  +-- 底层类型：一个 map，键为 T，值为 struct{}空结构体类型
+//   |  |            +-- T 用在底层类型中
+//   |  +-- 方括号内是类型参数
+//   +-- 定义一个新类型，名为 Set
+// struct{} 是一个匿名结构体类型
+// Set[T comparable] Go 语言 1.18 版本引入的泛型（Generics）语法
+
+/*
+	comparable 是类型约束，限制 T 只能是可比较的类型，只能使用 == 和 != 进行比较的类型
+	基本类型
+	bool, int, float64, string 等
+
+	指针
+	*int, *string 等
+
+	数组（元素必须也可比较）
+	[3]int, [2]string 等
+
+	结构体（所有字段必须都可比较）
+	struct{ Name string; Age int }
+
+	接口（动态类型可比较时才能比较，但约束上满足）
+	interface{}
+
+	不满足 comparable 的类型：
+	切片
+	[]int, []string
+
+	map
+	map[string]int
+
+	函数
+	func()
+
+	包含不可比较字段的结构体
+	struct{ Data []int }  // 因为字段 Data 是切片，不可比较
+*/
+
+// 初始化创建新的Set实例对象，返回Set类型实例
+func NewSet[T comparable]() Set[T] {// [T comparable]类型参数。比如map[string]，对[]中参数类型进行限制
+	return make(Set[T]) // 比如T是string make(map[string]struct{})，返回一个map
+}
+// 添加一个元素
+func (s Set[T]) Add(ele T) {
+	s[ele] = struct{}{}
+}
+// 删除某个元素
+func (s Set[T]) Remove(ele T)  {
+	delete(s, ele)
+}
+// 检查是否存在
+func (s Set[T]) Contains(ele T) bool {
+	_, ok := s[ele]
+	return ok
+}
+
+// 返回所有元素（无序）切片
+func (s Set[T]) getAll() []T {
+	allSetElement := make([]T, 0, len(s))
+	for key := range s {
+		allSetElement = append(allSetElement, key)
+	}
+	return allSetElement
+}
+
 
