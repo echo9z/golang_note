@@ -6574,6 +6574,33 @@ fmt.Println(mp2) // 仍然是 map[NaN:a NaN:b NaN:c]
 
 > **不要用 NaN 作为 map 的 key**。这是 Go 语言里一个经典的"坑"。
 
+
+#### 删除所有map
+在go1.21之前，没有内置的 clear 函数，常规做法是重新创建：
+```go
+m2 := map[string]string{
+   "tom": "ok",
+   "jack": "no",
+}
+// 常规做法是重新创建：
+// m2 = make(map[string]string)
+// 或者通过遍历删除，但逐个删除效率较低：
+for key := range m2 {
+   delete(m2, key)
+}
+fmt.Printf("m2:%d\n", len(m2)) // m2:0
+```
+
+从Go 1.21 开始，标准库新增了 clear(map) 函数，直接清空所有map
+```go
+m3 := map[string]string{
+   "tom": "ok",
+   "jack": "no",
+}
+clear(m3)
+fmt.Printf("m3:%d\n", len(m3)) // m3:0
+```
+
 #### 通过len获取长度
 ```go
 mapS := map[string]int{
@@ -6843,6 +6870,10 @@ func (s *SafeMap) delete(key string)  {
 
 
 #### map的嵌套结构
+Go 中 map 的 key 可以是任何可比较的类型（使用 `==` 或 `!=`），例如 string、int、float。但因此 slice 和 map 不能作为 key（注意：标准规则是 slice、map、function 不能作为 key。但比如`type Point struct{ X, Y int } m[Point]string`内建类型的 struct 是可以作为 key 的。）
+
+value 可以是任意类型的；通过使用空接口类型，`map[string]any` 可以存任意类型的值，- 取值时，必须使用类型断言：`v, ok := m["key"].(int)`，否则无法直接进行算术运算或调用特定方法。
+
 map的值为切片slice
 ```go
 groups := make(map[string][]int, 0)
@@ -6856,6 +6887,61 @@ if !ok {
    value = make([]string, 5) // 对应key中元素切片的初始化
 }
 value = append(value, "tom", "jack")
+```
+
+map的值是 struct结构
+```go
+users1 := make(map[int]User, 0)
+users1[1] = User{Name: "tom", Age: 18}
+// Go 中 map 的值是「不可寻址」(not addressable) 的。users1[1] 返回的是值的一个拷贝，而不是对 map 内部实际存储元素的引用，所以无法直接取它的地址、也就无法就地修改它的字段
+// users1[1].Age = 19   cannot assign to struct field users1[1].Age in map
+users2 := make(map[int]*User)
+users2[1] = &User{Name: "jack", Age: 29}
+users2[1].Age = 20 //  users2[1]是 *User，修改的是指向的同一块内存
+```
+
+map的值是 map
+```go
+students := map[string]map[string]int{
+   "Alice": {"math": 98, "english": 100, "pe": 60},
+   "Jack":  {"math": 90, "english": 85, "pe": 80},
+}
+score := students["Alice"]["math"]
+fmt.Printf("Alice: math=%d\n", score) // Alice: math=98
+
+students2 := make(map[string]map[string]int, 2)
+
+if _, ok := students2["tom"]; !ok {
+   students2["tom"] = map[string]int{"math": 100, "english": 121, "pe": 60}
+}
+score = students2["tom"]["math"]
+fmt.Printf("tom: math=%d\n", score) // tom: math=100
+```
+
+map的键为 struct结构体
+```go
+type Point struct{ X, Y int }
+m := map[Point]string{
+   {2, 3}: "A", // 点A
+   {4, 6}: "B", // 点B
+}
+fmt.Printf("点%s\n", m[Point{2, 3}]) // 点A
+```
+
+切片中的元素类型为map类型的切片
+```go
+mapSlice := make([]map[string]interface{}, 3, 5) // 创建切片类型为map
+// 按照mapSlice切片长度为每个元素初始化map
+for idx := range mapSlice {
+   mapSlice[idx] = make(map[string]interface{})
+}
+mapSlice[0]["name"] = "tom"
+mapSlice[0]["age"] = 15
+mapSlice[1]["name"] = "tom"
+mapSlice[1]["age"] = 18
+for idx, v := range mapSlice {
+   fmt.Printf("map[%d]=%v\n", idx, v)
+}
 ```
 
 
@@ -6953,6 +7039,17 @@ func main(){
 }
 ```
 
+#### 简单map使用场景
+计数 / 频率统计
+```go
+text := "go txt go go js rs js go java"
+cont := make(map[string]int, 0)
+for _, w := range strings.Fields(text) {
+   cont[w]++
+}
+fmt.Printf("cont: %v\n", cont) // cont: map[go:4 java:1 js:2 rs:1 txt:1]
+```
+
 去重集合（利用map键的唯一性）
 Go 没有内置 Set，可以用 `map[T]struct{}` 或 `map[T]bool` 模拟Set：
 ```go
@@ -6968,4 +7065,111 @@ for key := range idSet {
       uniqueIDs = append(uniqueIDs, key)
 }
 fmt.Printf("取重后：%v\n", uniqueIDs) // 取重后：[1 2 3 4]
+```
+
+快速查找表 / 索引
+```go
+// 把 slice 转成按 key 索引的 map，避免 O(n) 线性查找
+type Product struct {
+   Id int
+   Name string
+}
+products := []Product{
+   {0, "火鸡面"}, 
+   {1,"薯片"},
+}
+// 创建map，利用map的键唯一性
+mapProduct := make(map[int]Product, 0)
+for _, p := range products {
+   mapProduct[p.Id] = p
+}
+// 通过id值，直接快速查找到
+if pd, ok := mapProduct[0]; ok {
+   fmt.Println(pd) // {0 火鸡面}
+}
+```
+
+分组/聚合 (Group By)
+```go
+type Student struct {
+   ClassId int
+   Name string
+}
+studs := []Student{
+   {ClassId: 01, Name: "张三"},
+   {ClassId: 02, Name: "李四"},
+   {ClassId: 02, Name: "王五"},
+   {ClassId: 01, Name: "赵六"},
+}
+// 通过map的键取重，对ClassId进行取重，进行按ClassId进行分组
+group := make(map[int][]Student, 0)
+for _, stu := range studs {
+   group[stu.ClassId] = append(group[stu.ClassId], stu) // 向同classId追加Student实例，将相同id添加一个切片中
+}
+fmt.Printf("map:%v\n", group) // map:map[1:[{1 张三} {1 赵六}] 2:[{2 李四} {2 王五}]]
+```
+
+### 指针
+
+在 Go 语言中，**指针（Pointer）** 是用来存储变量内存地址的变量。和 C/C++ 相比，Go 的指针保留了直接访问和修改内存的能力，但做出了非常关键的安全性改进：**Go 默认不允许指针运算**。不能给指针做 `+1` 或 `-1` 这类移动内存地址的操作，极大避免了越界访问和野指针引发的崩溃。
+
+比如，“hello word”这个字符串把它写入程序中，程序一启动这句话是要加载到内存（假设内存地址0xa382b5）。在程序中把这段话赋值给变量`A`，把内存地址赋值给变量`B`。这时候变量`B`就是一个指针变量。通过变量`A`和变量`B`都能找到这段话。
+
+在go语言中的指针需要先知道3个概念：指针地址、指针类型和指针取值。
+
+#### 指针地址和指针类型
+
+每个变量在运行时都拥有一个地址，这个地址代表变量在内存中的位置。Go语言中使用`&`字符放在变量前面对变量进行“取地址”操作。 Go语言中的值类型（int、float、bool、string、array、struct）都有对应的指针类型，如：`*int`、`*int64`、`*string`等。
+
+取变量指针的语法如下：
+```go
+ptr := &v // v的类型为T
+```
+- v:代表被取地址的变量，类型为`T`
+- ptr:用于接收地址的变量，ptr的类型就为`*T`，称做T的指针类型。\*代表指针。
+
+```go
+var a int = 10
+var p *int = &a // p
+fmt.Printf("a:%d ptr:%p\n",a, &a) // a:10 ptr:0x3b3c078a0128
+fmt.Printf("p:%p ptr:%T\n", p, p) // p:0x3b3c078a0128 ptr:*int
+
+fmt.Println(&p) // 0x3e55e104050
+fmt.Println(*p) // 解引地址值，获取指针指向的值
+*p = 15 // 通过指针修改指向地址的值为15
+fmt.Println(*p) // 15
+```
+
+`b := &a`，示例图：
+![](./go.assets/img/point1.png)
+
+#### 指针取值
+对普通变量使用`&`操作符取地址后会获得这个变量的指针，然后可以对指针变量使用`*`操作，也就是指针取值，根据指针去内存取值。
+```go
+// *指针取值，根据指针去内存取值
+c := 100
+d := &c // 取变量c的地址，将指针保存到d中
+fmt.Printf("type of d:%T \n", d) // type of d:*int 
+e := *d // 根据d指针去内存取值
+fmt.Printf("type of e:%T, value of e:%d\n", e, e) // type of e:int, value of e:100
+```
+取地址操作符`&`和取值操作符`*`是一对互补操作符，`&`取出地址，`*`根据地址取出地址指向的值。
+
+#### 指针的零值
+- 当一个指针被定义后没有分配到任何变量时，它的值为 nil
+```go
+// 空指针，指针的零值是 nil
+// 初始化指针为nil，解引用nil 指针会 panic：恐慌异常
+var p1 *int
+if p1 != nil {
+   fmt.Println("非空")
+} else {
+   fmt.Println("空")
+}
+fmt.Println(p1) // <nil>
+fmt.Println(p1 == nil) // true，可以比较
+// 为什么会出现panic异常，*p1 = 100把 100 写入 p1 所指向的那块内存地址，但p指针地址为nil，没有指向任何有效的内存地址。运行时检测到后直接 panic
+// *p1 = 100 // panic: runtime error: invalid memory address or nil pointer dereference
+var str *string
+fmt.Printf("str的值是%v\n", str) // str的值是<nil>
 ```

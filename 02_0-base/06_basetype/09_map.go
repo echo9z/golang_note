@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"sort"
+	"strings"
 	"sync"
 )
 
@@ -88,6 +89,27 @@ func main() {
 	// 同理，删除也删不掉：
 	delete(mp2, math.NaN()) // 无效！因为传入的 NaN != 已存储的 Na
 	fmt.Println(mp2)        // 仍然是 map[NaN:a NaN:b NaN:c]
+
+	// 删除 map 中所有元素
+	// 在go1.21之前，没有内置的 clear 函数
+	m2 := map[string]string{
+		"tom": "ok",
+		"jack": "no",
+	}
+	// 常规做法是重新创建：
+	// m2 = make(map[string]string)
+	// 或者通过遍历删除，但逐个删除效率较低：
+	for key := range m2 {
+		delete(m2, key)
+	}
+	fmt.Printf("m2:%d\n", len(m2)) // m2:0
+	// 从Go 1.21 开始，标准库新增了 clear(map) 函数，直接清空所有map
+	m3 := map[string]string{
+		"tom": "ok",
+		"jack": "no",
+	}
+	clear(m3)
+	fmt.Printf("m3:%d\n", len(m3)) // m3:0
 
 	// 通过len获取长度
 	scores2["pe"] = 60
@@ -351,7 +373,16 @@ func main() {
 		fmt.Printf("set for value: \"%s\"\n", v)
 	}
 
-	// 6.3去重集合（利用键的唯一性）
+	// 7.map的使用场景
+	// 7.1计数 / 频率统计
+	text := "go txt go go js rs js go java"
+	cont := make(map[string]int, 0)
+	for _, w := range strings.Fields(text) {
+		cont[w]++
+	}
+	fmt.Printf("cont: %v\n", cont) // cont: map[go:4 java:1 js:2 rs:1 txt:1]
+
+	// 7.2去重集合（利用键的唯一性）
 	ids := []int{1, 2, 2, 3, 4, 4, 4}
 	idSet := make(map[int]struct{}, 0)
 
@@ -365,7 +396,51 @@ func main() {
 	}
 	fmt.Printf("取重后：%v\n", uniqueIDs) // 取重后：[1 2 3 4]
 
+	// 7.3快速查找表 / 索引
+	// 把 slice 转成按 key 索引的 map，避免 O(n) 线性查找
+	type Product struct {
+		Id int
+		Name string
+	}
+	products := []Product{
+		{0, "火鸡面"}, 
+		{1,"薯片"},
+	}
+	// 创建map，利用map的键唯一性
+	mapProduct := make(map[int]Product, 0)
+	for _, p := range products {
+		mapProduct[p.Id] = p
+	}
+	// 通过id值，直接快速查找到
+	if pd, ok := mapProduct[0]; ok {
+		fmt.Println(pd) // {0 火鸡面}
+	}
 
+	// 7.4. 分组/聚合 (Group By)
+	type Student struct {
+		ClassId int
+		Name string
+	}
+	studs := []Student{
+		{ClassId: 01, Name: "张三"},
+		{ClassId: 02, Name: "李四"},
+		{ClassId: 02, Name: "王五"},
+		{ClassId: 01, Name: "赵六"},
+	}
+	// 通过map的键取重，对ClassId进行取重，进行按ClassId进行分组
+	group := make(map[int][]Student, 0)
+	for _, stu := range studs {
+		group[stu.ClassId] = append(group[stu.ClassId], stu) // 向同classId追加Student实例，将相同id添加一个切片中
+	}
+	fmt.Printf("map:%v\n", group) // map:map[1:[{1 张三} {1 赵六}] 2:[{2 李四} {2 王五}]]
+
+	// 7.5依赖注入或路由注册, 路由路径映射到处理函数
+	handlers := make(map[string]func(), 0) // 
+	handlers["/hello"] = func () { fmt.Println("hello") }
+	handlers["/bye"] = func () { fmt.Println("bye bye") }
+	if fn, ok := handlers["/bye"]; ok {
+		fn() // bye bye
+	}
 
 }
 
