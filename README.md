@@ -6944,7 +6944,6 @@ for idx, v := range mapSlice {
 }
 ```
 
-
 #### map实现Set集合
 `Set` 对象是值的合集（collection）。集合（set）中的元素**只会出现一次**，即集合中的元素是唯一的。
 在 Go 中，**没有内置的 `Set` 类型**，通常使用 **`map[T]struct{}`** 来实现 Set。由于 Go 的 **map 本身就是无序的（unordered）**，因此基于 map 实现的 Set 也是**无序集合（unordered set）**。
@@ -7156,7 +7155,7 @@ fmt.Printf("type of e:%T, value of e:%d\n", e, e) // type of e:int, value of e:1
 取地址操作符`&`和取值操作符`*`是一对互补操作符，`&`取出地址，`*`根据地址取出地址指向的值。
 
 #### 指针的零值
-- 当一个指针被定义后没有分配到任何变量时，它的值为 nil
+当一个指针被定义后没有分配到任何变量时，自动将每个字段或元素设置为零值（如数字为 `0`，字符串为 `""`，指针为 `nil`）
 ```go
 // 空指针，指针的零值是 nil
 // 初始化指针为nil，解引用nil 指针会 panic：恐慌异常
@@ -7166,10 +7165,236 @@ if p1 != nil {
 } else {
    fmt.Println("空")
 }
+
 fmt.Println(p1) // <nil>
 fmt.Println(p1 == nil) // true，可以比较
 // 为什么会出现panic异常，*p1 = 100把 100 写入 p1 所指向的那块内存地址，但p指针地址为nil，没有指向任何有效的内存地址。运行时检测到后直接 panic
 // *p1 = 100 // panic: runtime error: invalid memory address or nil pointer dereference
 var str *string
 fmt.Printf("str的值是%v\n", str) // str的值是<nil>
+```
+
+`*int`即代表该变量的类型是一个`int`类型的指针，不过指针不能光声明，还得初始化，需要为其分配内存，否则就是一个空指针，无法正常使用。
+```go
+var p1 *int
+fmt.Println(p1) // <nil>
+
+// 未初始化为，值为nil
+// p1只是声明了一个指针，但未初始未分配内存是一个空指针，无法正常使用
+// 要么从其他变量取地址符，将其num2变量的地址赋值给该p1指针
+var num2 int = 110
+p1 = &num2
+fmt.Printf("类型%T, %d\n", p1, *p1) // 类型*int, 110
+
+// 或者内置函数new手动分配，初始化int为0
+p1 = new(int)
+fmt.Printf("类型%T, %d\n", p1, *p1) // 类型*int, 0
+```
+
+
+#### new函数
+`new` 是一个内置函数，==用于分配内存并将其初始化为对应类型的零值==，返回的是指向类型的指针。
+```go
+func new(Type) *Type
+```
+- type表示传入参数类型
+- new函数返回一个指向该类型内存地址的指针
+
+示例：
+```go
+n1 := new(int) // 返回*int指针
+*n1 = 100
+fmt.Printf("类型%T, %d\n", n1, *n1) // 类型*int, 100
+
+s1 := new(string)
+*s1 = "ok"
+fmt.Printf("类型%T, %s\n", s1, *s1) // 类型*string, ok
+```
+
+`new`函数只有一个参数那就是类型，并返回一个对应类型的指针，函数会为该指针分配内存，并且指针指向对应类型的零值。
+```go
+fmt.Printf("t:%T, v:%s\n", *new(string), *new(string)) //  t:string, v:   空字符串
+fmt.Printf("t:%T, v:%d\n", *new(int),  *new(int)) // t:int, v:0
+fmt.Printf("t:%T, v:%v\n", *new([5]int),  *new([5]int)) // t:[5]int, v:[0 0 0 0 0]
+fmt.Printf("t:%T, v:%v\n", *new([]float64),  *new([]float64)) // t:[]float64, v:[]  空切片
+```
+
+new函数主要针对基本类型（int、string、bool、byte…）没有字面量初始化语法
+```go
+p2 := new(int) // *int，指向值 0，一行搞定
+*p2 = 15
+
+// 如果不是new函数，得需要写三行
+var x1 int
+p3 := &x1 // *p3=0 多一个临时变量 x
+*p3 = 155
+fmt.Printf("类型%T, %v\n", p3, *p3) // 类型*int, 155
+```
+
+对于结构体：`&T{}` 基本取代了 `new(T)`，结构体有字面量语法 `User{...}`，所以 `&User{...}` 比 `new(User)`要好，而且 `new(User)` 和 `&User{}` **结果几乎一样**（都是指向零值结构体的 `*User`），只是 `&User{}` 能顺便初始化字段。所以在 Go 中，结构体基本都用 `&T{...}`，`new(T)` 反倒使用得少
+```go
+type User struct{
+  name string
+  age int
+}
+
+u1 := new(User)
+*u1 = User{name: "tom", age: 18}
+*&u1.age = 20 // 这样写 .运算符先级高于 *和&，但冗余、不易阅读不推荐这么些
+// 这么写不易阅读，先go自动解引，再对20进行取地址值，再又把地址解引用回来（不推荐）
+// 1> u1.age       Go 自动解引用 u1，取到结构体的 age 字段    类型为int
+// 2> &(u1.age)    再对这个 int 字段取地址                  类型为*int
+// 3> *(&(u1.age))  又把地址解引用回来                      类型为int（左值）
+// 4> = 20          赋值 
+
+// 推荐下面写法
+u1.age = 20 // Go 自动解引用，直接写字段
+(*u1).age = 20 // 显式解引用，也对，但啰嗦
+fmt.Printf("类型%T, %v\n", u1, *u1)
+
+// &T{}结构体有字面量语法 User{...}，所以 &User{...} 比 new(User)要好
+// 对结构体：&T{} 基本取代了 new(T)
+u2 := &User{name: "jack", age: 19}
+(*u2).age = 20 // 等价于自动解引用 u2.age = 20
+u3 := new(User) // 也行，但只能零值，还得再赋字段
+u3.name = "tom"
+u3.age = 18
+```
+
+##### 对于new 和 make
+make也是用于内存分配的，区别于new，它只用于slice、map以及channel的内存创建，make返回的类型是传入参数类型。
+```go
+mapData := make(map[string]int, 10)
+mapData["jack"] = 123456789
+fmt.Println(mapData)
+```
+
+`make` 专门给 slice / map / chan 用，与`new`分工完全不同：
+
+|      | `new(T)` | `make(T, ...)`   |
+| ---- | -------- | ---------------- |
+| 返回类型 | `*T`（指针） | `T`（值，不是指针）      |
+| 内存   | 零值       | 已**初始化**好的，可用内存  |
+| 适用   | 所有类型     | 仅 slice/map/chan |
+**`new` 返回指针给零值，`make` 返回可用值给引用类型**。map/slice/chan 永远用 `make`，基本类型要指针用 `new`，结构体要指针用 `&T{}`。
+
+
+#### 指针的应用场景
+
+###### 指针作为函数参数
+Go 默认是值传递（拷贝）。如果希望函数内部修改外部变量，必须传指针。
+```go
+md1 := func (x int)  { // 传递值时，只是将值复制副本
+   x = 100
+}
+// 指针作为函数参数
+md2 := func (x *int)  { // 形成是传递的复制是内存地址
+   *x = 100
+}
+
+num := 10
+md1(num)
+fmt.Println(num) // 10
+md2(&num)
+fmt.Println(num) // 100
+```
+
+##### 结构体指针接收者
+
+```go
+// 2结构体指针接收者
+type Account struct {
+            id int
+            name string
+            balance int
+}
+// 结构体的字段时，即便拿到的是一枚指针，也可以直接用 . 操作符，Go 会自动帮你解引用。
+func (a *Account) updateBalance(amount int)  {
+       a.balance += amount  // 实际上等价于  (*a).balance += balance
+}
+// 只是读取，不会修改
+func (a Account) getBalance()  {
+      fmt.Println("balance is", a.balance)
+}
+
+func main(){
+  account1 := Account{balance: 100}
+  account1.updateBalance(100)
+  account1.getBalance() // balance is 200
+}
+```
+
+##### 避免大对象或者数组拷贝
+```go
+func main(){
+      // 3避免大对象或者数组拷贝 性能
+      big := BigData{
+            Values: [1024*1024]int{0:10, 100: 110},
+      }
+      big.processVal(1, 100)
+      // 调用函数，传递指针，不需要传递对象
+      total := processBigDataP(&big)
+      fmt.Println("total", total)
+}
+
+// 3避免大对象拷贝
+type BigData struct{
+      // 对象属性中存在100万数组，如果将整个结构对象的值拷贝传递，会复制整个数组
+      // Values [1_000_000]int // [1_000_000] 下划线 _ 是数字分隔符，代表 100 万
+      Values [1024*1024]int // 占用 1MB 内存（数组是值类型，复制时会完整拷贝）
+}
+func (bigData *BigData)processVal(idx, num int) {
+      // 比如将Values的100万元素进行相加求和
+      bigData.Values[idx] = num
+}
+
+// 3.1值传递函数（Go 默认拷贝整个结构体，包含 1MB 的 Data 数组）
+func processBigDataV(bigData BigData) int {
+      var total int
+      for i := 0; i < len(bigData.Values); i++ {
+            total += i
+      }
+      return total
+}
+// 3.2指针传递函数（只复制 8 字节的内存地址）
+func processBigDataP(bigData *BigData) int {  // 直接操作原数据，无需复制整个数组
+      // 比如将Values的100万元素进行相加求和，直接复制传递指针只复制 8 字节，不会
+      var total int
+      for i := 0; i < len(bigData.Values); i++ {
+            total += i
+      }
+      return total
+}
+```
+
+##### map中修改结构体字段
+```go
+type Account struct {
+            id int
+            name string
+            balance int
+}
+
+func main(){
+      // map 的元素不可寻址，不能直接改字段，只能整体替换：
+      // m := map[string]Account{"a": {balance: 100}}
+      acc1 := make(map[string]Account)
+      acc1["a"] = Account{balance: 100}
+      // map 的值是「不可寻址」(not addressable) 的。
+      // acc1["a"] 返回的是值的一个拷贝，而不是对 map 内部实际存储元素的引用
+      // acc1["a"].balance += 100 // cannot assign to struct field m["a"].balance in map
+      
+      // 第一种整体替换，将"a"key的值account结构体复制给a1，将修改后的a1新account对象赋值给acc1["a"]
+      a1 := acc1["a"]
+      a1.balance += 100
+      acc1["a"] = a1
+      fmt.Printf("整体替换新的Acc结构体：%v\n", acc1["a"].balance)
+
+      // 第二种 存指针 推荐
+      // m2 := map[string]*Account{"a": {balance: 100}}
+      acc2 := make(map[string]*Account)   // map值为指针
+      acc2["a"] = &Account{balance: 50}
+      acc2["a"].balance += 50  // acc2["a"]为指针，指向同一个地址
+      fmt.Printf("map值为指针：%v\n", acc2["a"].balance)
+}
 ```

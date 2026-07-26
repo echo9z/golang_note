@@ -287,7 +287,7 @@ func main() {
 	users1[1] = User{Name: "tom", Age: 18}
 	// Go 中 map 的值是「不可寻址」(not addressable) 的。users1[1] 返回的是值的一个拷贝，而不是对 map 内部实际存储元素的引用，所以无法直接取它的地址、也就无法就地修改它的字段
 	// users1[1].Age = 19	cannot assign to struct field users1[1].Age in map
-	users2 := make(map[int]*User)
+	users2 := make(map[int]*User) // 通过指针
 	users2[1] = &User{Name: "jack", Age: 29}
 	users2[1].Age = 20 //  users2[1]是 *User，修改的是指向的同一块内存
 
