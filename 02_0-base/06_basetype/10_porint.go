@@ -107,6 +107,24 @@ func main(){
 	u3.name = "tom"
 	u3.age = 18
 
+	// 在go中指针不支持运算
+	a2 := int64(10)
+	p4 := &a2
+	// 禁止直接允许，对于一个指针p， 运算p++和p-2都是非法的。
+	// p4++ invalid operation: p4++ (non-numeric type *int64)
+	// p5 := (&a)+2
+	// p4 和 a2 指向同一块内存。对 *p4 自增，就是直接改 a2 那块内存的值。
+	(*p4)++  // 通过地址值解引用得到 a2 的值，在做对值做++自增运算
+	fmt.Printf("a2:%d, p4:%d\n", a2, *p4)
+	fmt.Printf("&a2(%v)==p4(%v):%v\n", &a2, p4, &a2 == p4)
+
+	*&a2++  // *(&a2)++ &取地址，再*解引
+	*&*&a2++ // *&*&a2++  *&抵消，先取地址再解引，(*&*&)a2++，*&*&冗余
+	**&p4++ // *&抵消，相当于*p4，*(*&)p4++，冗余部分*&
+	*&*p4++	// (*&)*p4，冗余部分*&
+	fmt.Printf("a2:%d, p4:%d\n", a2, *p4) // a2:15, p4:15
+
+
 	// 指针的应用场景
 	// 1指针传递 作为函数参数
 	// Go 默认是值传递（拷贝）。如果希望函数内部修改外部变量，必须传指针。
@@ -167,6 +185,32 @@ func main(){
 	list.Next = &ListNode{Val: 2}
 	list.Next.Next = &ListNode{Val: 3}
 	fmt.Printf("list：%+v\n", list) // list：&{Val:1 Next:0x110bf5e24030}
+
+	// 6.内存逃逸，在go中返回一个局部变量的地址是安全的，并由 GC 负责回收。
+	// 但在c语言中 a在栈上，函数返回后栈帧销毁，指针变成悬空指针。解引用它是未定义行为，可能读到垃圾或导致崩溃。
+	fmt.Println(newInt())
+	// 编译器在进行逃逸分析时，发现 a 在函数返回后仍被 *int 指针引用。自动将 a 分配到堆上，并由 GC 负责回收。
+
+	// 7.构造并返回对象，动态创建对象
+	stu1 := newStudent("李磊", 101)
+	fmt.Println(stu1.Name)
+
+}
+type Student struct {
+	Name string
+	IdCard int64
+}
+// 构造器
+func newStudent(name string, idCard int64) *Student {
+	return &Student{
+		Name: name,
+		IdCard: idCard,
+	}
+}
+// 6.内存逃逸
+func newInt() *int {
+	a := 100
+	return &a
 }
 
 // 2结构体指针接收者

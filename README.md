@@ -170,7 +170,7 @@ cd $GOPATH
 
 ## 基础语法
 
-### HelloWorld
+### 第一个程序
 
 通过一个简单的Hello World示例来进行讲解。
 
@@ -7261,7 +7261,7 @@ u3.name = "tom"
 u3.age = 18
 ```
 
-##### 对于new 和 make
+##### 对比new 和 make
 make也是用于内存分配的，区别于new，它只用于slice、map以及channel的内存创建，make返回的类型是传入参数类型。
 ```go
 mapData := make(map[string]int, 10)
@@ -7278,6 +7278,28 @@ fmt.Println(mapData)
 | 适用   | 所有类型     | 仅 slice/map/chan |
 **`new` 返回指针给零值，`make` 返回可用值给引用类型**。map/slice/chan 永远用 `make`，基本类型要指针用 `new`，结构体要指针用 `&T{}`。
 
+#### Go指针不支持算术运算
+在Go中，指针是不能参与算术运算的。比如，对于一个指针`p`， 运算`p++`和`p-2`都是非法的。
+
+如果`p`为一个指向一个数值类型值的指针，`*p++`将被编译器认为是合法的并且等价于`(*p)++`。 换句话说，解引用操作符`*`的优先级都高于自增`++`和自减`--`操作符。
+
+```go
+a2 := int64(10)
+p4 := &a2
+// 禁止直接允许，对于一个指针p， 运算p++和p-2都是非法的。
+// p4++ invalid operation: p4++ (non-numeric type *int64)
+// p5 := (&a)+2
+// p4 和 a2 指向同一块内存。对 *p4 自增，就是直接改 a2 那块内存的值。
+(*p4)++  // 通过地址值解引用得到 a2 的值，在做对值做++自增运算
+fmt.Printf("a2:%d, p4:%d\n", a2, *p4)
+fmt.Printf("&a2(%v)==p4(%v):%v\n", &a2, p4, &a2 == p4)
+
+*&a2++  // *(&a2)++ &取地址，再*解引
+*&*&a2++ // *&*&a2++  *&抵消，先取地址再解引，(*&*&)a2++，*&*&冗余
+**&p4++ // *&抵消，相当于*p4，*(*&)p4++，冗余部分*&
+*&*p4++     // (*&)*p4，冗余部分*&
+fmt.Printf("a2:%d, p4:%d\n", a2, *p4) // a2:15, p4:15
+```
 
 #### 指针的应用场景
 
@@ -7297,6 +7319,21 @@ md1(num)
 fmt.Println(num) // 10
 md2(&num)
 fmt.Println(num) // 100
+```
+
+```go
+type Student struct {
+      Name string
+      IdCard int64
+}
+// 构造器
+func newStudent(name string, idCard int64) *Student {
+      return &Student{
+            Name: name,
+            IdCard: idCard,
+      }
+}
+
 ```
 
 ##### 结构体指针接收者
@@ -7398,3 +7435,452 @@ func main(){
       fmt.Printf("map值为指针：%v\n", acc2["a"].balance)
 }
 ```
+
+
+##### 函数返回局部变量，在 go 中合法，在 c/c++ 中不允许
+在go中返回一个局部变量的地址是安全的，并由 GC 负责回收。
+```go
+func newInt() *int {
+    a := 3
+    return &a  // 返回局部变量的指针
+}
+```
+**C 语言**：`a` 在栈上，函数返回后栈帧销毁，指针变成**悬空指针**。解引用它是未定义行为，可能读到垃圾或导致崩溃。
+
+**Go**：编译器会进行**逃逸分析**。它发现 `a` 在函数返回后仍被 `*int` 指针引用，于是**自动将 `a` 分配到堆上**，并由 GC 负责回收。用 `go build -gcflags="-m"` 可以看到逃逸分析过程。
+
+Go指针阅读参考：[指针、引用和值](https://jaycechant.info/2021/golang-in-action-day-9-pointer-reference-and-value/)
+
+### 函数
+函数是 Go 程序的基本组成单位，用来**封装一段可复用的逻辑**。在Go中函数是一等公民（first-class function），也就是说函数可以像变量一样被赋值、传递、作为返回值。
+
+函数的声明格式：
+```go
+func 函数名([参数列表, arg1 int, arg2 string]) [返回值, int, string] {
+	函数体
+}
+
+func funcName(arg1 int, arg2 string) (int, string) {
+    // 处理逻辑代码
+    // 返回多个值
+    return value1, value2
+}
+```
+
+#### 函数参数
+
+```go
+// 无返回参数
+func sayHi()  {
+      fmt.Println("say Hi")
+}
+// 一个参数
+func add(n int) int {
+      return n + 10
+}
+
+// 两个参数 和 一个返回参数
+func sum(a int, b int) int {
+      return a + b
+}
+// 连续多个参数类型相同，可以省略前面的类型 func sum(a, b int) int {}
+
+```
+
+函数的参数中如果相邻变量的类型相同，则可以省略类型。
+```go
+func intSum(x ,y int) int {
+      return x +y
+}
+```
+
+##### 可变参数
+Go语言中的可变参数通过在参数名后加`...`来标识。
+```go
+func main(){
+      sum := intSum2(10, 20, 1, 2,3,4,5)
+      fmt.Println("可变参数", sum)
+      sum = intSum2(1,2, 10, 20)
+      fmt.Println("可变参数", sum)
+      // []int 
+      // args[0]:1 
+      // args[1]:2 
+      // args[2]:3 
+      // args[3]:4 
+      // args[4]:5 
+      // 可变参数 45
+}
+      
+// 可变参数：Go语言中的可变参数通过在函数参数名最后加...来标识。
+func intSum2(x, y int, n ...int) int {
+      fmt.Printf("%T \n", n) // n是一个切片
+      sum := x + y
+      for idx, arg := range n {
+            fmt.Printf("args[%d]:%d \n", idx, arg)
+            sum += arg
+      }
+      return sum
+}
+```
+本质上，函数的可变参数是通过切片来实现的。
+
+##### 函数参数传递
+
+
+#### 函数返回值
+Go语言中通过`return`关键字向外输出返回值。
+
+##### 多返回值
+函数如果有多个返回值时必须用`()`将所有返回值包裹起来。
+```go
+func Calculate(x, y int) (int, int) {
+      add := x+y
+      sub := x-y
+      return add, sub
+}
+```
+
+##### 返回值命名
+函数定义时可以给返回值命名，并在函数体中直接使用这些变量，最后通过`return`关键字返回。
+```go
+func Calculate2(x, y int) (add, sub int) {
+      add = x+y
+      sub = x-y
+      return
+}
+```
+
+函数返回值类型为slice时，nil可以看做是一个有效的slice，没必要显示返回一个长度为0的切片。
+```go
+func someFn(str string) []string {
+      if str == "" {
+            return nil
+      }
+      sp := strings.Split(str, ",")
+      return sp
+}
+```
+
+#### 函数返回值作为调用函数参数
+一个函数可以将另一个函数调用作为其参数，被调用函数的返回值个数、返回值类型和返回值顺序与传入函数的参数形参一致。
+比如`fn1(a,b,c int)`，fn2返回3个参数：`fn2(a,b int) (int, int, int)`。就可以`fn1(fn2(a,b))`调用
+```go
+func main() {
+	  fn1(fn2(20, 10))
+}
+func fn1(a, b, c int) {
+      fmt.Println(a, b, c)
+}
+func fn2(a,b int) (int, int, int) {
+      add := a+b
+      sub := a-b
+      mul := a*b
+      return add, sub, mul
+}
+```
+
+#### go中函数不支持重写
+在go中函数不支持重写，下面代码无法通过编译：
+```go
+type Person struct {
+      Name string
+      Age int
+      Salary float64
+}
+
+func NewPerson(name string, age int, salary float64) *Person {
+      return &Person{Name: name, Age: age,Salary: salary}
+}
+// 下面代码无法通过编译
+// func NewPerson(name string) *Person {
+//    return &Person{Name: name, Age: age,Salary: salary}
+// }
+```
+在go中如果函数名不一样那就是完全不同的函数，那么就不应该取一样的名字，函数的重载会让代码变得混淆和难以理解。
+
+#### 变量作用域
+##### 全局变量
+全局变量是定义在函数外部的变量，它在程序整个运行周期内都有效。
+```go
+var num int64 = 10 // 全局变量
+
+func GlobalVal() {
+      // 函数中访问全局变量
+      fmt.Printf("num:%d\n", num)
+}
+func main() {
+      GlobalVal() // num:10
+}
+```
+
+##### 局部变量
+局部变量，仅在当前函数内生效，外部无法直接访问该变量。
+```go
+func LocalVal()  {
+      // 局部变量x，仅在该函数内生效，外部无法直接访问该变量
+      var x int = 100
+      fmt.Printf("num:%d\n", x)
+}
+```
+
+如果局部变量和全局变量重名，优先访问局部变量。
+```go
+var total int64 = 20 // 全局
+func testLocal()  {
+      total := 100
+      fmt.Printf("total:%d\n", total) // 函数中优先使用局部变量
+}
+```
+
+#### 自定义函数类型
+通过 type 关键字可以定义自定义函数类型（Function Type）。
+```go
+type 自定义类型名 func(参数列表) 返回值列表
+
+type cal func(int, int) int
+```
+定义了一个`cal`类型，是一种函数类型，这种函数接收两个int类型的参数并且返回一个int类型的返回值。
+满足这个条件的函数都是`cal`类型的函数，例如下面的add和sub是`cal`类型。
+```go
+func add(x, y int) int {
+      return x + y
+}
+
+func sub(x, y int) int {
+      return x - y
+}
+```
+可以把sub和add函数赋值给cal 定义的类型函数
+```go
+type calc func(int, int) int
+func main() {
+      var cal calc // 声明一个MathOperation类型的变量cal
+      cal = sub // 把sub赋值给cal
+      fmt.Printf("type of cal:%T\n", cal)  // type of cal:main.calc
+      res1 := cal(20, 10) // 像直接调用sub函数和一样调用cal
+      fmt.Printf("res1:%d\n", res1) // res1:10
+
+      cal2 := sub // 直接将函数subtract一个变量
+      fmt.Printf("type of cal2:%T\n", cal2) // type of cal2:func(int, int) int
+      fmt.Printf("cal2 res1:%d\n", cal2(30, 10)) // cal2 res1:20
+}
+```
+
+
+#### 高阶函数
+##### 函数作为参数
+```go
+func addN(x, y int) int {
+      return x + y
+}
+func calc(x, y int, op func(int, int) int) int {
+      return op(x, y)
+}
+func main() {
+      res2 := calc(10, 20, addN) // 将函数addN做参数进行传递
+      fmt.Printf("calc res2:%d\n", res2) // calc res2:30
+}
+```
+
+##### 函数作为返回值
+```go
+func main() {
+      // 函数作为返回值
+      if add, err := doCalc("add"); err == nil {
+            res3 := add(20, 20)
+            fmt.Printf("return fn res3:%d\n", res3) // return fn res3:40
+      }
+}
+
+func doCalc(str string) (func(int, int) int, error) {
+      switch str {
+      case "add":
+            return addN, nil
+      case "sub":
+            return subtract, nil
+      case "mul":
+            return multiply, nil
+      default:
+            err := errors.New("must be add|sub|mul")
+            return nil, err
+      }
+}
+```
+
+
+例子：
+1.把函数类型作为参数传递，或者放在 map 中作为查找表，可以轻松实现策略模式。
+```go
+// 2.1 定义函数类型签名
+type MathOperation func(a, b int) int
+
+// 2.2 定义符合该签名的具体函数
+func addN(a, b int) int {
+      return a + b
+}
+func subtract(a, b int) int {
+      return a - b
+}
+func multiply(a, b int) int {
+      return a* b
+}
+
+// 2.3. 将函数类型作为参数传入
+func calculate(a, b int, op MathOperation) int {
+      return op(a, b)
+}
+
+func main(){
+      // 函数类型作为参数（回调函数）
+      // 方式A直接调用，作为参数传入
+      res := calculate(10, 20, addN)
+      fmt.Println("add func：", res) // add func： 30
+
+      // 方式 B：保存在 map 中（策略表）
+      ops := map[string]MathOperation{
+            "+": addN,
+            "-": subtract,
+            "*": multiply,
+            "/": func(a, b int) int { return a / b }, // 也支持匿名函数
+      }
+
+      operation := "*"
+      if op,ok := ops[operation]; ok {
+            fmt.Println("10*10 = ", op(10, 10)) // 10*10 =  100
+      }
+}
+
+```
+
+2.在Go 中，自定义类型（包括函数类型）都可以绑定方法。
+```go
+// 定义一个接口
+type Processor interface {
+      Process(data string)
+}
+// 定义函数类型，可以理解为struct结构，这个函数结构取实现
+type ProcessFn func(data string)
+
+// 核心：函数类型实现Processor接口，绑定ProcessFn自定义函数类型
+func (f ProcessFn) Process(data string)  {
+      // 直接调用自己函数本身
+      f(data)
+}
+// 普通函数参数中接收Processor接口
+func DoProcess(p Processor, data string) {
+      p.Process(data)
+}
+
+func main() {
+      // 1. 普通匿名函数转换为 ProcessFunc 类型，
+      // 可以这么理解type Age int，Age(18) 把 18 转成 Age 类型
+      // ProcessFn(匿名函数)  把这个匿名函数 转成 ProcessFn 类型
+      myFunc := ProcessFn(func(data string) { // myFunc类型为ProcessFn
+            fmt.Println("正在处理数据:", data)
+      })
+      // 因为ProcessFn实现了Processor接口方法，所以可以直接作为 Processor 接口传递
+      DoProcess(myFunc, "user_info") // 正在处理数据: user_info
+      // 类似多态，可以参考下面例子
+      /*
+      // 定义一个行为约定：只要能说话就行
+      type Speaker interface {
+            Speak() string
+      }
+
+      type Dog struct{}
+      func (Dog) Speak() string { return "汪汪" }
+
+      type Cat struct{}
+      func (Cat) Speak() string { return "喵喵" }
+
+      // 参数用接口接收 —— Dog、Cat 都能传进来
+      func MakeSound(s Speaker) {
+            fmt.Println(s.Speak())
+      }
+
+      func main() {
+            MakeSound(Dog{}) // 汪汪
+            MakeSound(Cat{}) // 喵喵
+      }*/
+}
+```
+
+3.函数类型常用于编写中间件（Middleware），对现有函数进行功能增强（如添加日志、耗时统计、权限校验等）。
+```go
+// 定义业务处理函数类型
+type Handler func(payload string)
+
+// 中间件：耗时统计，用函数类型作为参数
+func WithTiming(next Handler) Handler {
+      return func (payload string)  {
+            start := time.Now()
+            // 调用下一个处理函数
+            next(payload)
+            
+            fmt.Printf("[耗时统计] 执行完成，用时: %v\n", time.Since(start))
+      }
+}
+// 中间件：日志记录
+func WithLogging(next Handler) Handler {
+      return func(payload string) {
+            fmt.Println("[日志] 开始处理请求，参数:", payload)
+            next(payload)
+            fmt.Println("[日志] 请求处理结束")
+      }
+}
+// 伪业务逻辑
+func SaveData(data string) {
+      time.Sleep(100 * time.Millisecond) // 模拟耗时
+      fmt.Println("--> 成功保存数据:", data)
+}
+
+func main() {
+      pipeline := WithLogging(WithTiming(SaveData))
+      pipeline("user:tom,ageL10")
+      // [日志] 开始处理请求，参数: user:tom,ageL10
+      // --> 成功保存数据: user:tom,ageL10
+      // [耗时统计] 执行完成，用时: 100.33288ms
+      // [日志] 请求处理结束
+}
+```
+类似与nodejs框架中koa2洋葱模型。
+
+#### 函数的匿名参数
+在 Go 语言中，参数可以只写类型而不写名称（即匿名参数），通常用于**接口定义**、**函数类型声明**或**未使用的形参**。
+
+1.在接口使用：定义接口时，方法签名只需要指明参数类型，不需要参数名。
+```go
+type Reader interface {
+      // 只需要知道传入的是 []byte，不需要给它命名
+      Read([]byte) (int, error)
+}
+// 带参数名的接口（辅助阅读）增加可阅读性
+type UserServices interface {
+      // 加上 userID 和 role，比单纯写 (int, string) 更容易让人理解参数的含义
+      AssignRole(userID int, role string) error
+}
+```
+
+2.在定义函数的类型：声明一个自定义的函数签名或回调类型时。
+```go
+// 定义一个点击事件的回调函数类型
+// 只需要知道参数是 string 和 int，不需要起名字
+type OnClick func(string, int)
+// 定义一个过滤数据的函数类型
+type Filter func(int) bool
+```
+
+带参数名的函数类型（增强可读性）
+```go
+// 加上参数名后，调用者一眼就能看出哪个是旧密码，哪个是新密码
+type PasswordValidator func(newPassword string, oldPassword string) bool
+```
+
+3.普通函数中忽略未使用的参数：如果函数体不需要某个传入的值，可以用下划线 _ 或直接省略名称
+```go
+func processData(data string, _ int)  {
+      fmt.Println(data)
+}
+```
+
+
