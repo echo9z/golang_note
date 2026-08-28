@@ -7496,6 +7496,19 @@ func intSum(x ,y int) int {
 
 ##### 可变参数
 Go语言中的可变参数通过在参数名后加`...`来标识。
+`args`是一个slice通过`arg[index]`依次访问所有参数，通过len(arg)来判断传递参数的个数。
+```go
+func myfunc(args ...int) {    //0个或多个参数
+}
+
+func add(a int, args ...int) int {    //1个或多个参数
+}
+
+func add(a int, b int, args ...int) int {    //2个或多个参数
+}
+```
+
+
 ```go
 func main(){
       sum := intSum2(10, 20, 1, 2,3,4,5)
@@ -7525,6 +7538,87 @@ func intSum2(x, y int, n ...int) int {
 本质上，函数的可变参数是通过切片来实现的。
 
 ##### 函数参数传递
+- **实参（argument）**：调用时实际传入的值，例如 `pack1.Add(3, 5)` 中的 `3` 和 `5`。
+- **形参（parameter）**：函数定义时占位的变量，例如 `func Add(a int, b int)` 中的 `a` 和 `b`
+函数调用时，实参会按位置**一一对应**地传递给形参。
+
+值传递：在调用函数时将实际参数复制一份将副本传递函数中，在函数中修改传递参数值，对其副本参数进行修改不会影响实际传递的变量
+```go
+func main(){
+    // 值传递
+    x := 10
+    y := 20
+    swapVal(x, y)
+    fmt.Printf("x:%d y:%d\n", x, y) // x:10 y:20 没有交换
+}
+
+func swapVal(x, y int)  {
+    temp := x
+    x = y
+    y = temp
+}
+```
+
+引用传递（指针传递）：在调用函数时将实际参数的地址传递到函数中，在函数中修改传递参数值，实际上对内存地址进行修改会影响实际传递的变量
+```go
+func main(){
+    // 引用传递，传递内存地址
+    swapPoint(&x, &y)
+    fmt.Printf("x:%d y:%d\n", x, y) // x:20 y:10 交换
+}
+
+func swapPoint(x, y *int)  {
+    temp := *x // *x取得的是内存指针所指向值
+    *x = *y
+    *y = temp
+}
+```
+
+```go
+// 无法修改外部变量
+func updateVal(val int) {
+    val = 100
+}
+
+// 通过指针修改外部变量
+func updatePtr(ptr *int) {
+    *ptr = 100
+}
+
+func main() {
+    x := 10
+    updateVal(x)
+    fmt.Println(x) // 仍然是 10
+
+    updatePtr(&x)
+    fmt.Println(x) // 被修改为 100
+}
+```
+
+注意：
+- 无论是值传递，还是引用传递，传递给函数的都是变量的副本，不过值传递是值的拷贝。引用传递是地址的拷贝，一般来说，地址拷贝更为高效。而值拷贝取决于拷贝的对象大小，对象越大，则性能越低。
+- map、slice、chanl、指针、interface默认以引用的方式传递。
+
+##### 任意类型参数
+使用 `interface{}`传递任意类型数据。在 Go 1.18 及以后，`any` 是 `interface{}` 的完全等价别名。
+```go
+func main() {
+    res4 := intSum3(10, 20, "30", 10)
+    fmt.Println("args any", res4) // args any 40
+}
+
+// 使用interface{}（或 any）传递任意类型数
+func intSum3(args ...interface{}) any {
+    total := 0
+    for _, arg := range args {
+        // 使用断言进行判断参数的类型
+        if num, ok := arg.(int); ok {
+            total += num
+        }
+    }
+    return total
+}
+```
 
 
 #### 函数返回值
@@ -7561,7 +7655,7 @@ func someFn(str string) []string {
 }
 ```
 
-#### 函数返回值作为调用函数参数
+##### 函数返回值作为调用实参函数参数
 一个函数可以将另一个函数调用作为其参数，被调用函数的返回值个数、返回值类型和返回值顺序与传入函数的参数形参一致。
 比如`fn1(a,b,c int)`，fn2返回3个参数：`fn2(a,b int) (int, int, int)`。就可以`fn1(fn2(a,b))`调用
 ```go
@@ -7578,6 +7672,356 @@ func fn2(a,b int) (int, int, int) {
       return add, sub, mul
 }
 ```
+
+##### 返回值为匿名函数
+函数返回一个匿名函数
+```go
+func main() {
+    multip := makeMultiplier(10)
+    resM := multip(9)
+    fmt.Printf("mult 9*10：%d\n", resM) // mult 10*9：90
+}
+func makeMultiplier(factor int) func(int) int {
+    return func(x int) int {
+        return x * factor
+    }
+}
+```
+
+##### 命名返回参数允许 defer 延迟调用
+命名返回参数允许 defer 延迟调用通过闭包读取和修改。
+```go
+func add2(x, y int) (z int) {
+    defer func ()  { // 在return返回函数前调用匿名函数
+        fmt.Println(z) // 40 
+    }()
+
+    z = x + y
+    return z + 10 // 执行顺序 z = x + y -> z + 10 -> defer func() -> return返回
+}
+
+func main() {
+    addRes := add2(10, 20)
+    fmt.Printf("add2 defer：%d\n", addRes) // add2 defer：40
+}
+```
+
+#### 匿名函数
+没有函数名的函数，可以立即执行，或者赋值给变量：
+```go
+func main(){
+    // var sum1 func(a int, b int) int = func(a int, b int) int  {
+    var sum1 = func(a int, b int) int { // 或者直接简写 sum1 := func(a int, b int) int {
+        return a + b
+    }
+    num2 := sum1(19,20)
+    fmt.Println("num2", num2)
+
+    // 匿名函数自调用，声明并立即执行
+    func (msg string)  {
+        fmt.Println(msg)
+    }("hello fn")
+}
+```
+匿名函数多用于实现回调函数和闭包。
+
+切片中为匿名func类型
+```go
+fnSlices := []func(int)int{
+    func(i int) int { return i+1},
+    func(i int) int { return i+2},
+}
+fmt.Println("fn",fnSlices[0](10))
+```
+
+结构体字段匿名函数
+```go
+// 结构体字段为func类型
+objFn := struct { // 匿名结构体
+    fn func(string) string
+}{
+    fn: func(str string) string {return str},
+}
+fmt.Println(objFn.fn("ok"))
+```
+
+channel通道返回匿名func
+```go
+func main(){
+	channel通道返回func类型
+    chFn := make(chan func() string, 2) // 建一个通道，里面装的是 func() string 类型
+    chFn <- func() string { return "im ok"} // ch <- value：把匿名函数「送进」通道（发送）
+    res5 := (<-chFn)() // <-chFn：从通道里「取出」那个函数，然后 () 调用它
+    fmt.Println("res5", res5) // res5 im ok
+}
+```
+
+#### 闭包
+go中闭包函数，本质是一个匿名函数捕获外层变量，被捕获的变量其生命周期超出了定义的作用域，跟着匿名函数存活。
+
+```go
+func makeCount() (func() int) {
+    count := 0 // 外层局部变量
+    return func() int { // 这个匿名函数捕获了 count 外层变量
+        count++
+        return count
+    }
+}
+func main(){
+    fnCount := makeCount()  
+    fmt.Printf("fnCount:%d\n", fnCount()) // 1
+    fmt.Printf("fnCount:%d\n", fnCount()) // 2
+    fmt.Printf("fnCount:%d\n", fnCount()) // 3
+}
+```
+fnCount变量函数并且它引用了其外部作用域中的count变量，此时fnCount就是一个闭包。在fnCount的生命周期内，变量x也一直有效。
+
+示例1
+```go
+func main(){
+    fnAdder2 := adder2(20)
+    fmt.Printf("adder2:%d\n", fnAdder2(20)) // 40
+    fmt.Printf("adder2:%d\n", fnAdder2(20)) // 60
+    fmt.Printf("adder2:%d\n", fnAdder2(40)) // 100
+}
+// 调用adder2函数返回闭包函数，闭包函数引用外部的 adder2传入形参x变量，形成闭包
+func adder2(x int) (func(int) int) {
+    return func(y int) int {
+        x += y
+        return x
+    }
+}
+```
+
+示例2
+```go
+func makeSuffixFn(suffix string) (func(string) string) {
+    return func(s string) string {
+        if !strings.HasSuffix(s, suffix) { // s字符串是否以 suffix为结尾
+            return s + suffix
+        }
+        return s
+    }
+}
+func main(){
+    jpegFn := makeSuffixFn(".jpeg")
+    pngFn := makeSuffixFn(".png")
+    fmt.Println(jpegFn("image1")) // image1.jpeg
+    fmt.Println(pngFn("image2")) // image2.png
+}
+```
+
+示例3
+```go
+func Calculate3(base int) (add, sub func (int) int) {
+    add = func (val int) int {
+        base += val
+        return base
+    }
+    sub = func (val int) int {
+        base -= val
+        return base
+    }
+    return add, sub
+}
+func main(){
+    add, sub := Calculate3(10)
+    fmt.Printf("add:%d, sub:%d \n", add(1), sub(2)) // 闭包每次都对一个局部变量进行加减操作，先加1：add=11，再减2：sub=9
+    fmt.Printf("add:%d, sub:%d \n", add(2), sub(3)) // 再以base=9，加2：add=11,再减3：sub=8
+}
+```
+
+#### 递归
+在 Go 语言中，递归（Recursion）是指一个函数在执行过程中直接或间接调用自身。最经典的例子便是计算斐波那契数列，即前两个数为 1，从第三个数开始每个数均为前两个数之和。
+
+##### 两个核心要素
+编写递归函数时，必须具备以下两个基本条件，否则会导致**无限递归（死循环）** 并引发程序崩溃：
+
+1. 基线条件 / 终止条件（Base Case）：明确何时停止递归，直接返回结果，避免无限调用。
+2. 递推关系 / 递归步骤（Recursive Step）：每次调用自身时，传入的参数规模必须逐步向终止条件逼近。
+
+递归调用逻辑：
+```go
+func(n)
+  └── 调用 func(n-1)
+        └── 调用 func(n-2)
+              └── ... 
+                    └── 触碰终止条件 (Base Case)，逐层向上返回结果
+```
+
+- 递归有明确终止条件：无限递归，会导致栈溢出问题
+- 每次递归都向终止条件靠近：例如参数递减、问题规模缩小等
+- 递归深度可控：Go 的 goroutine 栈可以动态增长，但有上限
+
+1.阶乘 5! = 5×4×3×2×1
+```go
+// 递归终止条件：0! = 1
+// n! = n × (n-1)!
+func factorial(n int) int {
+  if n <= 1 { // 当n <= 1时，递归出口返回
+    return 1
+  }
+  return n * factorial(n - 1)  // 递归调用：规模缩小（n-1）
+}
+func main(){
+  // 1. 阶乘：5! = 5×4×3×2×1
+  fmt.Printf("5的阶乘：%d\n",factorial(5))
+}
+```
+
+2.斐波那契而数列，即前两个数为 1，从第三项开始每个数均为前两项之和
+```go
+// 0 1 1 2 3 5 8 13...
+// F(0)=0,F(1)=1, F(n)=F(n−1)+F(n−2) n表示第几项，比如f6=第5项+第4项
+func fibonacci(n int) int {
+  // 递归终止条件
+  if n <= 0 {
+    return 0
+  }
+  if n == 1 {
+    return 1
+  }
+  // 多分支递归调用
+  return fibonacci(n - 1) + fibonacci(n - 2)
+}
+
+func main(){
+  for i := 0; i < 8; i++ {
+    fmt.Printf("%d ", fibonacci(i)) // 0 1 1 2 3 5 8 13 
+    if i == 7 {
+      fmt.Println()
+    }
+  }
+}
+```
+
+##### 匿名函数递归（闭包递归）
+匿名函数要实现递归必须先声明函数变量，在进行赋值，否则函数体内无法调用本身
+```go
+func main(){
+  var countDown func(int) (int, error)
+  countDown = func (n int) (int, error) {
+    fmt.Printf("%d ", n)
+    if n <= 0 {
+      return 0, errors.New("传入值大于0")
+    }
+    if n <= 1 {
+      return 1, nil
+    }
+    val, err := countDown(n - 1)
+    if err != nil {
+      return 0, err
+    }
+    return n * val, nil
+  }
+  val, _ := countDown(5)
+  fmt.Println("匿名函数递归", val) // 5 4 3 2 1 匿名函数递归 120
+}
+```
+或者**自定义函数类型**
+```go
+type FactFn func(n int) int
+
+var fact FactFn = func(n int) int {
+  if n <= 1 {
+    return 1
+  }
+  return n * fact(n-1)
+}
+```
+
+递归遍历目录
+```go
+func main(){
+  if err := walkDir("02_0-base/06_basetype"); err != nil {
+    panic(err)
+  }
+}
+
+func walkDir(path string) error {
+  // 读取指定path目录，按文件名排序的返回切片类型的所有目录条目
+  entries, err := os.ReadDir(path)
+  if err != nil { // 读取目录发生错误
+    return err
+  }
+  // 遍历读取到的文件切片目录条目
+  for _, entry := range entries {
+    // 将传入目录和读取文件名进行拼接完成路径
+    full := filepath.Join(path, entry.Name())
+    if entry.IsDir() {
+      // 条目中是目录，递归进入子目录，进行遍历
+      if err := walkDir(full); err != nil {
+        return nil
+      }
+    } else {
+      fmt.Println(full)
+    }
+  }
+  return nil
+}
+```
+
+4.二叉树求和与前序遍历（树形结构处理）
+```go
+// 定义二叉树节点
+type TreeNode struct {
+	Val   int
+	Left  *TreeNode
+	Right *TreeNode
+}
+
+// 递归求二叉树所有节点值的总和
+func SumTree(root *TreeNode) int {
+	// 终止条件：空节点返回 0
+	if root == nil {
+		return 0
+	}
+	// 当前节点值 + 左子树总和 + 右子树总和
+	return root.Val + SumTree(root.Left) + SumTree(root.Right)
+}
+
+func main() {
+	/*
+	      10
+	     /  \
+	    5    15
+	   /
+	  2
+	*/
+	root := &TreeNode{
+		Val: 10,
+		Left: &TreeNode{
+			Val:  5,
+			Left: &TreeNode{Val: 2},
+		},
+		Right: &TreeNode{Val: 15},
+	}
+
+	fmt.Println("二叉树节点和:", SumTree(root)) // 输出: 32
+}
+```
+
+#### 相互递归
+即两个或多个函数之间互相调用形成环路，直到满足终止条件后层层返回。
+go语言中可以互相调用的递归函数：多个函数相互调用形成闭环。
+```go
+// isEvent判断一个非负数是否为偶数
+func isEvent(n int) bool {
+  if n == 0 { // 当互相调用传入为0，终止递归循环，偶数返回true
+    return true
+  }
+  return isOdd(n - 1) // 偶数减 1 后应为奇数
+}
+
+// isOdd判断一个非负数是否为奇数
+func isOdd(n int) bool {
+  if n == 0 {
+    return false
+  }
+  return isEvent(n - 1) // 奇数减 1 后应为偶数
+}
+```
+时间复杂度为 O(n)，对于较 n数可能栈溢出，实际中更常用取模运算。
 
 #### go中函数不支持重写
 在go中函数不支持重写，下面代码无法通过编译：
@@ -7706,7 +8150,6 @@ func doCalc(str string) (func(int, int) int, error) {
       }
 }
 ```
-
 
 例子：
 1.把函数类型作为参数传递，或者放在 map 中作为查找表，可以轻松实现策略模式。
@@ -7845,6 +8288,38 @@ func main() {
 ```
 类似与nodejs框架中koa2洋葱模型。
 
+3.将函数类型作为函数的参数或返回值，实现高度复用的控制逻辑。
+```go
+// 高阶函数：作为参数与返回值（通用过滤器与工厂）
+// 1.定义断言/过滤函数类型
+type Predicate func(int) bool
+
+// 2.泛用切片过滤函数（接收函数类型作为参数）
+func Filter(num []int, p Predicate) []int {
+    var result []int
+    for _, v := range num {
+        if p(v) { // 通过过滤函数进行条件处理判断
+            result = append(result, v)
+        }
+    }
+    return result
+}
+
+// 3. 工厂函数（返回函数类型）
+func GreaterThan(limit int) Predicate {
+    return func(n int) bool {
+        return n > limit // 取的切片值大于limit，追加到res[]中
+    }
+}
+
+func main() {
+    numbers := []int{1, 5, 8, 12, 3, 15}
+    limit := 10
+    res := Filter(numbers, GreaterThan(limit))
+    fmt.Printf("大于%d\n res:%v", limit, res)
+}
+```
+
 #### 函数的匿名参数
 在 Go 语言中，参数可以只写类型而不写名称（即匿名参数），通常用于**接口定义**、**函数类型声明**或**未使用的形参**。
 
@@ -7884,3 +8359,122 @@ func processData(data string, _ int)  {
 ```
 
 
+#### defer
+
+defer关键字可以使得一个函数延迟一段时间调用，被 defer 的调用不会立即执行，而是在函数返回之前逐个执行被defer修饰的函数或语句。
+```go
+func onWork()  {
+  defer func ()  {
+    fmt.Println("hello")
+  }()
+  fmt.Println("world")
+}
+
+```
+
+`defer`语句延迟调用的特性，所以`defer`语句能非常方便的处理资源释放问题。比如：资源清理、文件关闭、解锁及记录时间等。
+
+`defer`的执行顺序是逆序执行，最先写defer语句最后被执行，最后写defer语句最先被执行。类似栈先进后出，后进先出（栈顺序）
+```go
+func main() {
+  fmt.Println("start")
+  defer fmt.Println(1)
+  defer fmt.Println(2)
+  // panic(errors.New("恐慌panic"))
+  defer fmt.Println(3)
+  fmt.Println("end")
+}
+
+// 输出顺序
+start
+end
+3
+2
+1
+```
+
+1. 关键字 defer 用于注册延迟调用。
+2. 这些调用直到 return 前才被执。常用来做资源清理。
+3. 多个defer语句，按先进后出的方式执行。
+4. defer语句中的变量，在defer声明时就决定了。
+
+defer语句中声明变量，在声明时参数值就已经固定的
+```go
+func main() {
+  // defer语句中声明变量，在声明时参数值就已经固定的
+  defer fmt.Println(onDef())
+  fmt.Println(3)
+}
+func onDef() int {
+  fmt.Println(2)
+  return 1
+}
+```
+正常认为输出的结果顺序，先输出3，再是2，最后1
+但结果是2，3， 1，在声明`defer fmt.Println(onDef())`，Println输出参数是被固定，会先调用onDef()函数输出2，在确定固定参数`defer fmt.Println(1)`，再输出3，函数返回之前执行defer输出1,最后得到顺序2，3，1。
+
+defer 只延迟**函数体的执行**，但**参数会立刻被求值并固定**：
+```go
+func main() {
+	i := 0
+	defer fmt.Println("defer 时的 i =", i) // i 此时求值 = 0，被记住
+	i = 100
+	fmt.Println("当前 i =", i)
+}
+// 输出：
+// 当前 i = 100
+// defer 时的 i = 0    ← 不是 100！
+```
+
+如果想要执行时的值，用**闭包**引用变量：
+```go
+func main() {
+	i := 0
+	defer func() {
+		fmt.Println(i) // 闭包引用变量本身 → 输出 100
+	}()
+	i = 100
+}
+```
+
+##### 函数的命名返回参数使用 defer 
+函数的命名返回参数允许 defer 延迟调用通过闭包读取和修改。
+```go
+func add2(x, y int) (z int) {
+  defer func ()  { // 在return返回函数前调用匿名函数
+    fmt.Println("闭包中defer",z)
+  }()
+
+  z = x + y
+  return z + 10 // 执行顺序 z = x + y -> z + 10 -> defer func() -> return返回
+}
+```
+没有定义返回参数的名称
+```go
+func add3(x, y int) int{
+  var z int
+  defer func ()  { // 在return返回函数前调用匿名函数
+    fmt.Println("闭包中defer",z)
+  }()
+
+  z = x + y
+  return z + 10 // 执行顺序 z = x + y -> z + 10没有定义命名返回参数 -> defer func()执行z值为30 -> return返回
+}
+```
+
+```go
+addRes := add2(10, 20)
+fmt.Printf("add2 defer：%d\n", addRes)
+// 闭包中defer 40
+// add2 defer：40
+
+add3(10, 20)
+fmt.Printf("add3 defer：%d\n", addRes) 
+// 闭包中defer 30
+// add3 defer：40
+```
+
+
+>官方文档：“A `defer` statement invokes a function whose execution is deferred to the moment the surrounding function returns, either because the surrounding function executed a return statement, reached the end of its function body, or because the corresponding goroutine is panicking.” 即函数返回、函数结束或者对应的goroutine发生panic时defer执行。
+
+#### panic 与 recover
