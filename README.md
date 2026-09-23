@@ -5681,6 +5681,7 @@ fmt.Printf("slc3:%v,l:%d,c:%d\n ", slc3, len(slc3), cap(slc3))  // slc3:[3 4 5],
 ```
 
 #### 清空切片
+clear 清空切片/map：切片所有元素置为零值但长度不变；map 删除所有键值对。
 ```go
 slc4 := []int{1, 2, 3, 4, 5, 6, 7, 8, 9} 
 slc4 = slc4[0:0:0]
@@ -5691,6 +5692,7 @@ slc5 := []int{1, 2, 3, 4, 5, 6, 7, 8, 9}
 clear(slc5)
 fmt.Printf("slc4:%v,l:%d,c:%d\n ", slc5, len(slc5), cap(slc5)) // slc4:[0 0 0 0 0 0 0 0 0],l:9,c:9
 ```
+注意：不改变 slice 的 len，只清内容。
 
 #### 多维切片
 Go 中的二维切片本质是**切片的切片**：`[][]T`。[Effective Go - 二维切片](https://go.dev/doc/effective_go#two_dimensional_slices)
@@ -7756,6 +7758,23 @@ func main(){
 }
 ```
 
+将匿名函数作为参数传递（例如排序、过滤、映射）。
+```go
+type User struct {
+    Name string
+    Age  int
+}
+
+func main() {
+    users := []User{{"alice",25}, {"tom", 39}, {"jack", 19}}
+    // 使用匿名函数自定义排序规则
+    sort.Slice(users, func (i, j int) bool {
+        return users[i].Age > users[j].Age // 从大到小，如果i元素不大于j元素返回false则交换顺序
+    })
+    fmt.Printf("%v", users)
+}
+```
+
 #### 闭包
 go中闭包函数，本质是一个匿名函数捕获外层变量，被捕获的变量其生命周期超出了定义的作用域，跟着匿名函数存活。
 
@@ -8076,6 +8095,44 @@ func testLocal()  {
 }
 ```
 
+#### 函数的匿名参数
+在 Go 语言中，参数可以只写类型而不写名称（即匿名参数），通常用于**接口定义**、**函数类型声明**或**未使用的形参**。
+
+1.在接口使用：定义接口时，方法签名只需要指明参数类型，不需要参数名。
+```go
+type Reader interface {
+      // 只需要知道传入的是 []byte，不需要给它命名
+      Read([]byte) (int, error)
+}
+// 带参数名的接口（辅助阅读）增加可阅读性
+type UserServices interface {
+      // 加上 userID 和 role，比单纯写 (int, string) 更容易让人理解参数的含义
+      AssignRole(userID int, role string) error
+}
+```
+
+2.在定义函数的类型：声明一个自定义的函数签名或回调类型时。
+```go
+// 定义一个点击事件的回调函数类型
+// 只需要知道参数是 string 和 int，不需要起名字
+type OnClick func(string, int)
+// 定义一个过滤数据的函数类型
+type Filter func(int) bool
+```
+
+带参数名的函数类型（增强可读性）
+```go
+// 加上参数名后，调用者一眼就能看出哪个是旧密码，哪个是新密码
+type PasswordValidator func(newPassword string, oldPassword string) bool
+```
+
+3.普通函数中忽略未使用的参数：如果函数体不需要某个传入的值，可以用下划线 _ 或直接省略名称
+```go
+func processData(data string, _ int)  {
+      fmt.Println(data)
+}
+```
+
 #### 自定义函数类型
 通过 type 关键字可以定义自定义函数类型（Function Type）。
 ```go
@@ -8097,6 +8154,7 @@ func sub(x, y int) int {
 可以把sub和add函数赋值给cal 定义的类型函数
 ```go
 type calc func(int, int) int
+
 func main() {
       var cal calc // 声明一个MathOperation类型的变量cal
       cal = sub // 把sub赋值给cal
@@ -8110,6 +8168,80 @@ func main() {
 }
 ```
 
+在结构体中作为字段
+```go
+// 1. 定义错误处理回调的函数类型
+type ErrorHandler func(err error)
+
+// 2. 结构体中包含该函数类型字段
+type TaskRunner struct {
+    Name    string
+    OnError ErrorHandler // 回调函数字段
+}
+
+func (t *TaskRunner) Run() {
+    fmt.Printf("任务 %s 开始运行...\n", t.Name)
+    
+    // 模拟发生错误
+    err := errors.New("磁盘空间不足")
+
+    // 如果配置了回调函数，则触发
+    if t.OnError != nil {
+        t.OnError(err)
+    }
+}
+
+func main() {
+    runner := TaskRunner{
+        Name: "数据备份",
+        // 注册具体的错误处理逻辑
+        OnError: func(err error) {
+            fmt.Println("[告警系统] 收到任务错误通知:", err)
+        },
+    }
+    runner.Run()
+}
+```
+
+切片或 Map 中的函数类型（责任链 / 规则引擎）
+将多个相同类型的函数存入切片或 Map，实现**批处理流水线**或**查找表**。
+```go
+// 定义校验规则函数类型
+type Validator func(info string) error
+
+func Validators(vali string) error {
+    validators := []Validator{
+        func (s string) error {
+            if len(s) == 0 {
+                return fmt.Errorf("字符串为空")
+            }
+            return nil
+        },
+      func(s string) error {
+            if len(s) < 6 {
+                return fmt.Errorf("字符串长度小于6")
+            }
+            return nil
+        },
+    }
+
+    for _, valiFn := range validators {
+        if err := valiFn(vali); err != nil{
+			return fmt.Errorf("校验失败-%s", err)
+        }
+    }
+    return nil
+}
+
+func main(){
+	// 将多个相同类型的函数存入切片或 Map，实现批处理流水线或查找表。
+    // 比如校验字符串
+    passwd := "12345"
+    if err := Validators(passwd); err != nil {
+        fmt.Println("校验result:", err) // 校验result: 校验失败-字符串长度小于6
+    }
+}
+```
 
 #### 高阶函数
 ##### 函数作为参数
@@ -8151,7 +8283,7 @@ func doCalc(str string) (func(int, int) int, error) {
 }
 ```
 
-例子：
+##### 高阶函数例子
 1.把函数类型作为参数传递，或者放在 map 中作为查找表，可以轻松实现策略模式。
 ```go
 // 2.1 定义函数类型签名
@@ -8320,47 +8452,8 @@ func main() {
 }
 ```
 
-#### 函数的匿名参数
-在 Go 语言中，参数可以只写类型而不写名称（即匿名参数），通常用于**接口定义**、**函数类型声明**或**未使用的形参**。
-
-1.在接口使用：定义接口时，方法签名只需要指明参数类型，不需要参数名。
-```go
-type Reader interface {
-      // 只需要知道传入的是 []byte，不需要给它命名
-      Read([]byte) (int, error)
-}
-// 带参数名的接口（辅助阅读）增加可阅读性
-type UserServices interface {
-      // 加上 userID 和 role，比单纯写 (int, string) 更容易让人理解参数的含义
-      AssignRole(userID int, role string) error
-}
-```
-
-2.在定义函数的类型：声明一个自定义的函数签名或回调类型时。
-```go
-// 定义一个点击事件的回调函数类型
-// 只需要知道参数是 string 和 int，不需要起名字
-type OnClick func(string, int)
-// 定义一个过滤数据的函数类型
-type Filter func(int) bool
-```
-
-带参数名的函数类型（增强可读性）
-```go
-// 加上参数名后，调用者一眼就能看出哪个是旧密码，哪个是新密码
-type PasswordValidator func(newPassword string, oldPassword string) bool
-```
-
-3.普通函数中忽略未使用的参数：如果函数体不需要某个传入的值，可以用下划线 _ 或直接省略名称
-```go
-func processData(data string, _ int)  {
-      fmt.Println(data)
-}
-```
-
 
 #### defer
-
 defer关键字可以使得一个函数延迟一段时间调用，被 defer 的调用不会立即执行，而是在函数返回之前逐个执行被defer修饰的函数或语句。
 ```go
 func onWork()  {
@@ -8369,7 +8462,6 @@ func onWork()  {
   }()
   fmt.Println("world")
 }
-
 ```
 
 `defer`语句延迟调用的特性，所以`defer`语句能非常方便的处理资源释放问题。比如：资源清理、文件关闭、解锁及记录时间等。
@@ -8449,7 +8541,8 @@ func add2(x, y int) (z int) {
   return z + 10 // 执行顺序 z = x + y -> z + 10 -> defer func() -> return返回
 }
 ```
-没有定义返回参数的名称
+
+没有定义函数的返回参数名称
 ```go
 func add3(x, y int) int{
   var z int
@@ -8461,7 +8554,7 @@ func add3(x, y int) int{
   return z + 10 // 执行顺序 z = x + y -> z + 10没有定义命名返回参数 -> defer func()执行z值为30 -> return返回
 }
 ```
-
+输入结果：
 ```go
 addRes := add2(10, 20)
 fmt.Printf("add2 defer：%d\n", addRes)
@@ -8477,4 +8570,314 @@ fmt.Printf("add3 defer：%d\n", addRes)
 
 >官方文档：“A `defer` statement invokes a function whose execution is deferred to the moment the surrounding function returns, either because the surrounding function executed a return statement, reached the end of its function body, or because the corresponding goroutine is panicking.” 即函数返回、函数结束或者对应的goroutine发生panic时defer执行。
 
-#### panic 与 recover
+##### defer自动管理资源
+Go 的 GC 只回收**内存**，不管**系统资源**（文件句柄、锁、网络连接）。手动管理资源不写defer机制，每次操作处理资源的都必须释放。
+
+不使用defer，每次操作，都得处理资源的释放：锁的释放、文件句柄的关闭。
+```go
+func CopyFile(dstName, srcName string, mu *sync.Mutex) (written int64, err error) {
+  mu.Lock() // 互斥锁 mu 锁定，确保同一时间只有一个线程可以执行文件写入操作，避免数据竞争。
+  src, err := os.Open(srcName)
+  if err != nil {
+    mu.Unlock()
+    // src.Close()
+    return 0, err
+  }
+
+  // 创建目标文件
+  // 该操作会创建或截断指定的文件。如果文件已经存在，则只会将其截断；如果文件不存在，则会以模式 0o666 创建该文件
+  dst, err := os.Create(dstName)
+  if err != nil {
+    mu.Unlock()
+    src.Close() // 关闭占着句柄
+    return 0, err
+  }
+
+  // 从 src 复制到 dst，直到在 src 处达到文件末尾或发生错误为止。该函数会返回复制的字节数，以及复制发生错误
+  written, err = io.Copy(dst, src)
+  if err != nil {
+    mu.Unlock()
+    dst.Close()
+    src.Close()
+    return 0, err
+  }
+
+  mu.Unlock()
+  dst.Close()
+  src.Close()
+  return written, err
+}
+```
+
+使用defer申请资源之后，马上defer+释放资源。当函数CopyFileDefer函数运行结束时会自动释放锁和关闭文件句柄。
+```go
+func CopyFileDefer(dstName, srcName string, mu *sync.Mutex) (written int64, err error) {
+  mu.Lock()
+  defer mu.Unlock()
+
+  src, err := os.Open(srcName)
+  if err != nil {
+    return 0, err
+  }
+  defer src.Close() // 关闭占着句柄
+
+  dst, err := os.Create(dstName)
+  if err != nil {
+    return 0, err
+  }
+  defer dst.Close()
+
+  written, err = io.Copy(dst, src)
+  if err != nil {
+    return 0, err
+  }
+
+  return written, err
+}
+```
+
+十、泛型高阶数据处理（Map / Filter / Reduce）
+```go
+func main() {
+    type Users struct {
+        name string
+        age int
+    }
+    userAll := []Users{{"tom", 19}, {"jack", 27}, {"joni", 19}, {"alex", 20}}
+    // 比如按照age从小到大顺序
+    newUserAll := Filters(userAll, func(user Users) bool {
+        return user.age < 20
+    })
+    fmt.Printf("age小于20 users:%v\n", newUserAll)
+    // 在将newUserAll name大写
+    upperUser := Maps(newUserAll, func(user Users) Users {
+        name := strings.ToUpper(user.name)
+        return Users{name, user.age}
+    })
+    fmt.Printf("name upper users:%v\n", upperUser)
+}
+
+// Go 1.18 引入泛型后，高阶函数可以用于编写通用的T合转换、过滤逻辑，减少重复写 for 循环和创建临时切片的样板代码。
+// Filter: 过滤满足断言条件的元素
+// 传入泛型类型 Filters[T any](用来约束传入参数和函数返回值的类型)
+func Filters[T any](element []T, predicate func(T) bool) []T {
+    result := make([]T, 0)
+    for _, ele := range element { // 3= 4
+        if predicate(ele) {
+            result = append(result, ele)
+        }   
+    }
+    return result
+}
+
+// Map: 将一种类型的切片映射为另一种类型的切片
+// [T any, U any] 两个泛型约束
+func Maps[T any, U any](element []T, transform func(T) U) []U {
+    // 返回新U类型切片，最大长度也就ele长度
+    result := make([]U, len(element))
+    for idx, ele := range element {
+        // 根据传入方法比如转换元素为大小写等等
+        result[idx] = transform(ele)
+    }
+    return result
+}
+
+```
+
+```go
+    sortUser := Sort(userAll, func(u1, u2 Users) bool {
+        return u1.age > u2.age
+    })
+    fmt.Printf("sort users:%v\n", sortUser)
+
+    // Reduce 将切片中某一元素属性值进行累加
+    // 求userAll切片中所有年龄总和
+    totalAge := Reduce(userAll, 0, func(acc int, curr Users) int {
+        return acc + curr.age
+    })
+    fmt.Println("年龄总和:", totalAge) // 85
+```
+
+[万字长文：从实践到原理说透Golang defer](https://segmentfault.com/a/1190000042896300)
+
+
+#### go中的内置函数
+
+| 名称                 | 说明                                                                              |
+| ------------------ | ------------------------------------------------------------------------------- |
+| close()            | 专门用于关闭 channel                                                                  |
+| len()、cap()        | len 用于返回某个类型的长度或数量（字符串、数组、切片、map 和管道）;cap 是容量用于返回某个类型的最大容量（只能用于切片和 map）         |
+| new、make           | new 和 make 均是用于分配内存；new用于值类型和用户定义的类型，如自定义结构，返回定义类型指针；make 用于内置引用类型（切片、map 和管道）。 |
+| copy、append、delete | copy切片之间复制专用，目标是复制到的目标切片；append用来追加元素到数组、slice中；delete删除对应map键所对应的值             |
+| clear              | Go 1.21新增，clear清空切片/map：切片所有元素置为零值但长度不变；map 删除所有键值对。                            |
+| panic、recove       | panic配合recove用于处理Go 异常机制                                                        |
+| print、println      | 仅调试使用，输出到 stderr，不走 fmt 格式化                                                     |
+| complex、real、imag  | 用于创建形如5+10i的复数，`re+imI` 来表示，其中 `re` 代表实数部分，`im` 代表虚数部分，`I` 代表根号负 1。             |
+
+
+####  panic异常 与 recover捕获异常
+在go语言中，与许多面向对象语言（如 Java、Python、C++）通过 try-catch-finally 机制抛出异常不同，Go 的设计哲学是：**“错误是普通的值（Errors are values）”**。没有异常，没有 try/catch，错误就是普通的返回值，走正常的 `if`、`return` 控制流。
+
+Go 没有 try/catch 异常机制，取而代之的是 panic/recover。但要：它们**不是** Go 处理错误的常规手段，而是处理**不可恢复的程序错误**和极少数控制流场景的机制。
+
+[panic](https://devdocs.io/go/builtin/index#panic) 是 Go 的内置函数，其原型为：
+```go
+func panic(v any) // Go 1.18 之前为 func panic(v interface{})
+```
+- **参数 v**：可以是任意类型（如字符串、error 对象、自定义结构体等），这个值会传递给捕获它的 recover() 函数；如果未被捕获，最终会打印在终端的崩溃日志中。
+
+触发时机：
+- **隐式触发（运行时错误）**：如空指针解引用（nil pointer dereference）、切片越界访问、被 0 整除等。
+```go
+x := 10/0 // 整数除零(浮点除零不 panic,返回 Inf)
+
+var porint *int
+*p = 10 // 解引用nil空指针
+
+var m map[string]int
+m["age"]=10 // 向nil 空map写入值
+
+var msg any = "hello"
+num := msg.(int) // 断言失败 panic: interface conversion: interface {} is string, not int
+```
+
+- **显式触发**：开发者主动调用 panic("严重错误信息")。
+```go
+func main(){
+	panic("出事了") // 通常传 string 或 error
+	// 或
+	// panic(fmt.Errorf("bad: %d", 42))
+}
+```
+
+
+##### 基本panic例子
+```go
+func base() {
+    fmt.Println("start")
+    panic("error 500")
+    fmt.Println("end") // 后面的panic
+}
+```
+程序打印 panic 值 + 完整的 goroutine 栈信息，以非零状态码退出。
+```txt
+[Running] go run "/golang_note/02_0-base/06_basetype/12.panic_recover.go"
+start
+panic: error 500
+
+goroutine 1 [running]:
+main.base()
+    /run/media/echo9z/
+exit status 2
+```
+
+##### panic 会执行 defer
+panic发生异常奔溃 当前goroutine 函数中已经注册的 defer，顺序是 LIFO，后进先出。会执行 defer。
+```go
+// panic 会执行 defer
+func panicDef()  {
+  defer fmt.Println("defer 1")
+  defer fmt.Println("defer 2")
+  defer fmt.Println("defer 3")
+
+  fmt.Println("panic defer")
+  panic("error panic")
+}
+
+func main() { 
+  panicDef()
+}
+```
+
+```go
+[Running] go run "/golang_note/02_0-base/06_basetype/12.panic_recover.go"
+panic defer
+defer 2
+defer 1
+panic: error panic
+
+goroutine 1 [running]:
+main.panicDef()
+	... ...
+exit status 2
+```
+
+##### panic 的传播机制
+当某个函数调用了 panic（或触发了运行时异常）后，Go 运行时的执行流程如下：
+1.立即中断当前代码：当前函数停止执行 panic 之后的普通代码。
+2.执行当前函数的 defer：如果当前函数内注册了 defer 语句，按照**后进先出（LIFO）** 的顺序执行。
+3.向上传播（栈展开 Stack Unwinding）：
+- 当前函数执行完所有 defer 后返回到上一层调用者。
+- 调用者函数的普通流程也被中断，开始执行调用者自己的 defer。
+- 依次向外层函数传递，直到 Goroutine 顶层。
+4.程序崩溃（未被 recover 的情况下）：
+- 如果整条调用栈上的 defer 都执行完毕，且没有执行 recover() 拦截，整个进程会异常终止（非零退出码）。
+- 终端会打印传入 panic 的内容，以及当前 Goroutine（甚至所有 Goroutine）的调用栈轨迹（Stack Trace）。
+```go
+func panicA()  {
+    defer fmt.Println("defer in A")
+    panicB()
+    fmt.Println("continues A") // 下层函数发生panic，不会执行
+}
+func panicB()  {
+    defer fmt.Println("defer in B")
+    panicC()
+    fmt.Println("continues B") // 不会执行
+}
+func panicC()  {
+    defer fmt.Println("defer in C")
+    panic("bad panic in C")
+}
+func main() {
+    defer fmt.Println("defer in main")
+    panicA()
+}
+```
+
+```txt
+[Running] go run "/golang_note/02_0-base/06_basetype/12.panic_recover.go"
+defer in C
+defer in B
+defer in A
+defer in main
+panic: bad panic in C
+
+goroutine 1 [running]:
+...（堆栈信息）
+exit status 2
+```
+
+```go
+执行顺序
+main() 
+  ↓
+a()
+  ↓
+b()
+  ↓
+c()
+  ↓
+panic()
+
+进入panic后，向上返回调用链：
+c() 停止，执行当前defer，输出defer in C
+  ↓
+b() 停止，执行当前defer，输出defer in B
+  ↓
+a() 停止，执行当前defer，输出defer in A
+  ↓
+main() 停止，执行当前defer，输出defer in main
+  ↓
+程序崩溃，输出 bad panic in C
+```
+
+
+- panic 传播路径上，函数体 panic 之后的代码、调用点之后的代码**全部跳过**。只执行 panic直接注册的 `defer`，遵循 **后进先出 LIFO**
+- 只有 panic 发生**之前已经注册**的 defer 才会执行
+- 如果中间defer中没有 recover() 函数捕获，程序最终会退出
+```go
+func f() {
+    panic("boom")
+    defer func() { recover() }()  // 注册在 panic 之后,不执行,程序崩溃
+}
+```

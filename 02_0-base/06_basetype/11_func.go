@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -62,7 +64,7 @@ func main()  {
 	addRes2 := add3(10, 20)
 	fmt.Printf("add3 defer：%d\n", addRes2) // add3 defer：30
 
-	// 三、匿名函数
+	// 四、匿名函数
   // 没有函数名的函数，可以立即执行，或者赋值给变量：
 	// var sum1 func(a int, b int) int = func(a int, b int) int  {
 	var sum1 = func(a int, b int) int { // 或者直接简写 sum1 := func(a int, b int) int {
@@ -98,7 +100,25 @@ func main()  {
 	res5 := (<-chFn)() // <-chFn：从通道里「取出」那个函数，然后 () 调用它
 	fmt.Println("res5", res5) // res5 im ok
 
-	// 四、在go中的闭包
+	// 匿名函数作为作为参数传递
+	type User struct {
+		Name string
+    Age  int
+	}
+	users := []User{{"alice",25}, {"tom", 39}, {"jack", 19}}
+	// 使用匿名函数自定义排序规则
+	sort.Slice(users, func (i, j int) bool {
+		return users[i].Age > users[j].Age // 从大到小，如果i元素不大于j元素返回false则交换顺序
+	})
+	fmt.Printf("%v", users)
+
+	// 函数返回匿名函数 工厂/策略模式
+	double := multiplier(2)
+	triple := multiplier(3)
+	fmt.Println(double(5)) // 10
+	fmt.Println(triple(5)) // 15
+	
+	// 五、在go中的闭包
 	fnCount := makeCount() // fnCount变量函数并且它引用了其外部作用域中的count变量，此时fnCount就是一个闭包。在fnCount的生命周期内，变量x也一直有效。 
 	fmt.Printf("fnCount:%d\n", fnCount()) // 1
 	fmt.Printf("fnCount:%d\n", fnCount()) // 2
@@ -122,7 +142,7 @@ func main()  {
 	fmt.Printf("add:%d, sub:%d \n", add(1), sub(2)) // 闭包每次都对一个局部变量进行加减操作，先加1：add=11，再减2：sub=9
 	fmt.Printf("add:%d, sub:%d \n", add(2), sub(3)) // 再以base=9，加2：add=11,再减3：sub=8
 
-	// 五、递归函数
+	// 六、递归函数
 	// 1. 阶乘：5! = 5×4×3×2×1
 	fmt.Printf("5的阶乘：%d\n",factorial(5))
 	// 2.斐波那契数列 1 1 2 3 5 8 13...
@@ -164,7 +184,11 @@ func main()  {
 	fmt.Println("21 isOdd", isOdd(21))
 	fmt.Println("18 isOdd", isOdd(18))
 
-	// 四.通过 type 关键字可以定义自定义函数类型
+	// 递归下降解析算术表达式
+	res6 := parse("(3+4)*2")
+	fmt.Printf("res6:%v \n", res6) // 14
+
+	// 七、通过 type 关键字可以定义自定义函数类型
 	// type MathOperation func(a, b int) int
 	// 可以把subN和subtract、multiply函数赋值给cal 定义的类型函数
 	var cal MathOperation // 声明一个MathOperation类型的变量cal
@@ -186,7 +210,6 @@ func main()  {
 		fmt.Printf("return fn res3:%d\n", res3) // return fn res3:40
 	}
 
-
 	// 函数类型作为参数（回调函数）
 	// 方式A直接调用，作为参数传入
 	res := calculate(10, 20, addN)
@@ -204,9 +227,24 @@ func main()  {
 	if op,ok := ops[operation]; ok {
 		fmt.Println("10*10 = ", op(10, 10)) // 10*10 =  100
 	}
-	
 
-	// 五、Go 中，自定义类型（包括函数类型）都可以绑定方法。
+	// 在结构体中作为字段（事件回调 / Hook 机制）
+	task := TaskRunner{
+		Name: "备份任务",
+		onError: func(err error) { // 注册备份具体的错误处理逻辑
+			fmt.Println("告警-当前任务错误：", err)
+		},
+	}
+	task.Run()
+
+	// 将多个相同类型的函数存入切片或 Map，实现批处理流水线或查找表。
+	// 比如校验字符串
+	passwd := "12345"
+	if err := Validators(passwd); err != nil {
+		fmt.Println("校验result:", err)
+	}
+
+	// 八、Go 中，自定义类型（包括函数类型）都可以绑定方法。
 	// 1. 普通匿名函数转换为 ProcessFunc 类型，
 	// 可以这么理解type Age int，Age(18) 把 18 转成 Age 类型
 	// ProcessFn(匿名函数)  把这个匿名函数 转成 ProcessFn 类型
@@ -238,7 +276,7 @@ func main()  {
 			MakeSound(Cat{}) // 喵喵
 	}*/
 
-	// 六、中间件 / 装饰器模式（链式处理）
+	// 九、中间件 / 装饰器模式（链式处理）
 	// 函数类型常用于编写中间件（Middleware），对现有函数进行功能增强（如添加日志、耗时统计、权限校验等）。
 	pipeline := WithLogging(WithTiming(SaveData))
 	pipeline("user:tom,ageL10")
@@ -246,6 +284,38 @@ func main()  {
 	// --> 成功保存数据: user:tom,ageL10
 	// [耗时统计] 执行完成，用时: 100.33288ms
 	// [日志] 请求处理结束
+
+	// 十、泛型高阶数据处理（Map / Filter / Reduce）
+	type Users struct {
+		name string
+		age int
+	}
+	userAll := []Users{{"tom", 19}, {"jack", 27}, {"joni", 19}, {"alex", 20}}
+	// 比如按照age从小到大顺序
+	newUserAll := Filters(userAll, func(user Users) bool {
+		return user.age < 20
+	})
+	fmt.Printf("age小于20 users:%v\n", newUserAll)
+	// 在将newUserAll name大写
+	upperUser := Maps(newUserAll, func(user Users) Users {
+		name := strings.ToUpper(user.name)
+		return Users{name, user.age}
+	})
+  fmt.Printf("name upper users:%v\n", upperUser)
+
+	sortUser := Sort(userAll, func(u1, u2 Users) bool {
+		return u1.age > u2.age
+	})
+	fmt.Printf("sort users:%v\n", sortUser)
+
+	// Reduce 将切片中某一元素属性值进行累加
+	// 求userAll切片中所有年龄总和
+	totalAge := Reduce(userAll, 0, func(acc int, curr Users) int {
+		return acc + curr.age
+	})
+	fmt.Println("年龄总和:", totalAge) // 85
+
+
 }
 
 // 一、声明函数
@@ -387,7 +457,15 @@ func add3(x, y int) int{
 	return z + 10 // 执行顺序 z = x + y -> z + 10没有定义命名返回参数赋值给返回值变量z+10=40 -> defer func()执行z值为30 -> return返回
 }
 
-// 四、闭包
+// 四、匿名函数
+// 函数作为返回值(工厂/策略模式)
+func multiplier(factor int) func (int) int {
+	return func (num int) int {
+		return factor * num
+	}
+}
+
+// 五、闭包
 // go中闭包函数，本质是一个匿名函数捕获外层变量，被捕获的变量其生命周期超出了定义的作用域，跟着匿名函数存活。
 func makeCount() (func() int) {
 	count := 0 // 外层局部变量
@@ -398,7 +476,6 @@ func makeCount() (func() int) {
 }
 // makeCounter()会得到一个独立的 count
 // 编译器逃逸分析发现变量被捕获且逃出函数 → 自动搬到堆，闭包存指针
-
 func adder1() (func(int) int) {
 	var x int
 	return func(y int) int {
@@ -435,7 +512,7 @@ func Calculate3(base int) (add, sub func (int) int) {
 	return add, sub
 }
 
-// 五、递归函数
+// 六、递归函数
 // 递归函数在执行的过程中，直接或者间接调用自己本身的函数。
 // 递归有明确终止条件：无限递归，会导致栈溢出问题
 // 每次递归都向终止条件靠近：例如参数递减、问题规模缩小等
@@ -506,7 +583,102 @@ func isOdd(n int) bool {
 }
 // 时间复杂度为 O(n)，对于较 n数可能栈溢出，实际中更常用取模运算。
 
-// 三、函数的匿名参数
+// token：词法单元，词法分析输出的最小单位
+type token struct {
+	kind rune // token 类型：'n' 表示数字；其余直接用符号本身 '+'、'-'、'*'、'/'、'('、')' 表示
+	val  int  // token 的数值，仅当 kind == 'n' 时有效
+}
+
+// 存放全局词法分析序列
+var tokens []token
+var pos int
+
+// parse：总入口。输入表达式字符串 s，返回计算结果
+// 比如输入"(3+4)*2"
+func parse(s string) int {
+		// ---------- 第一阶段：词法分析，把字符串拆成 token 序列 ----------
+	tokens = []token{}           // 清空上次解析残留，重置全局状态
+	for i := 0; i < len(s); i++ { // 逐字节扫描整个字符串
+		c := s[i]  // 取出当前字符
+		switch c { // 按字符类别分派处理
+		case '+', '-', '*', '/', '(', ')': // 运算符或括号
+			tokens = append(tokens, token{kind: rune(c)}) // 生成一个对应符号的 token（无数值）
+		case ' ', '\t': // 空白字符
+			continue // 直接跳过，不生成 token
+		default: // 其他字符：只允许是数字，否则视为非法
+			if c >= '0' && c <= '9' { // 是数字字符 '0'~'9'
+				j := i                                            // j 从 i 出发，向后找连续数字串的结尾
+				for j < len(s) && s[j] >= '0' && s[j] <= '9' {    // 只要是数字就继续右移
+					j++ // j 右移一位
+				} // 到这里 s[i:j] 就是完整的多位数字，如 "123"
+				num, _ := strconv.Atoi(s[i:j])                     // 数字字符串 → int（已确保纯数字，忽略错误）
+				tokens = append(tokens, token{kind: 'n', val: num}) // 生成数字 token
+				i = j - 1 // 让 i 直接跳到数字串末尾：外层 i++ 后正好等于 j
+			} else { // 既不是符号、空白，也不是数字
+				panic("invalid char") // 非法字符，报错终止
+			}
+		}
+	}
+	pos = 0            // 重置解析游标到序列开头
+	return parseExpr()
+}
+
+// parseExpr：加减层（优先级最低）。文法：expr → term (('+'|'-') term)*
+func parseExpr() int {
+	left := parseTerm() // 先解析一个 term 作左操作数（其中的乘除会在此之前先算完）
+	for pos < len(tokens) && (tokens[pos].kind == '+' || tokens[pos].kind == '-') { // 循环吃掉连续的 +/-
+		op := tokens[pos].kind // 记录当前运算符
+		pos++                  // 游标前移，消耗该运算符 token
+		right := parseTerm()   // 解析下一个 term 作右操作数
+		if op == '+' {         // 加法
+			left += right // 立刻折叠进 left：从左到右累算，保证左结合
+		} else { // 减法
+			left -= right // 同样立刻折叠
+		}
+	}
+	return left // 遇到非 +/- 的 token 或序列结束时返回，即整个加减表达式的值
+}
+
+// parseTerm：乘除层（优先级高于加减）。文法：term → factor (('*'|'/') factor)*
+func parseTerm() int {
+	left := parseFactor() // 先解析一个 factor 作左操作数（数字或括号子表达式）
+	for pos < len(tokens) && (tokens[pos].kind == '*' || tokens[pos].kind == '/') { // 循环吃掉连续的 *//
+		op := tokens[pos].kind // 记录当前运算符
+		pos++                  // 游标前移，消耗该运算符 token
+		right := parseFactor() // 解析下一个 factor 作右操作数
+		if op == '*' {         // 乘法
+			left *= right // 立刻折叠进 left
+		} else { // 除法
+			left /= right // Go 整数除法，向零截断（如 7/2 == 3）
+		}
+	}
+	return left // 返回乘除表达式的值，交给上层的 parseExpr 参与加减运算
+}
+
+// parseFactor：原子层（优先级最高）。文法：factor → 数字 | '(' expr ')'
+func parseFactor() int {
+	if pos >= len(tokens) { // 游标已越过末尾却还需要 token
+		panic("unexpected EOF") // 表达式不完整（如 "3+"），报错终止
+	}
+	tok := tokens[pos] // 取出当前 token
+	if tok.kind == 'n' { // 情况 1：数字
+		pos++         // 游标前移，消耗该数字 token
+		return tok.val // 直接返回数值
+	}
+	if tok.kind == '(' { // 情况 2：左括号，开启一个子表达式
+		pos++              // 消耗 '('
+		val := parseExpr() // 递归进入加减层，完整解析括号内的内容（expr→term→factor→expr 调用环）
+		if pos < len(tokens) && tokens[pos].kind == ')' { // 子表达式后必须紧跟 ')'
+			pos++      // 消耗 ')'
+			return val // 括号内算好的值就作为本 factor 的结果
+		}
+		panic("missing ')'") // 括号未闭合，报错终止
+	}
+	panic("unexpected token") // 情况 3：既非数字也非 '('（如一元负号 "-3"），报错终止
+}
+
+
+// 七、函数的匿名参数
 // go中可以参数只写类型而不写名称（即匿名参数），通常用于接口定义、函数类型声明或未使用的形参。
 // 1.在接口使用：定义接口时，方法签名只需要指明参数类型，不需要参数名。
 type Reader interface {
@@ -535,7 +707,7 @@ func processData(data string, _ int)  {
 	fmt.Println(data)
 }
 
-// 四、通过 type 关键字可以定义自定义函数类型（Function Type）。
+// 八、通过 type 关键字可以定义自定义函数类型（Function Type）。
 // 把函数类型作为参数传递，或者放在 map 中作为查找表，可以轻松实现策略模式。
 // 2.1 定义函数类型签名
 type MathOperation func(a, b int) int
@@ -576,8 +748,57 @@ func doCalc(str string) (func(int, int) int, error) {
 	}
 }
 
+// 3.2在结构体中作为字段（事件回调 / Hook 机制）
+// 定义错误回调的函数类型
+type ErrorHandler func(err error)
 
-// 五、自定义类型（包括函数类型）都可以绑定方法。
+// 结构体中包含的错误函数类型字段
+type TaskRunner struct {
+	Name string
+	onError ErrorHandler // 回调函数字段
+}
+
+func (t *TaskRunner) Run() {
+	fmt.Printf("任务%s开始运行...\n", t.Name)
+	// 模拟错误
+	err := errors.New("磁盘不足")
+
+	if t.onError != nil { // 配置了回调函数，侧触发
+		t.onError(err)
+	}
+}
+
+// 3.3将多个相同类型的函数存入切片或 Map，实现批处理流水线或查找表
+// 定义校验规则函数类型
+type Validator func(info string) error
+
+func Validators(vali string) error {
+	validators := []Validator{
+		func (s string) error {
+			if len(s) == 0 {
+				return fmt.Errorf("字符串为空")
+			}
+			return nil
+		},
+	  func(s string) error {
+			if len(s) < 6 {
+				return fmt.Errorf("字符串长度小于6")
+			}
+			return nil
+		},
+	}
+
+	for _, valiFn := range validators {
+		if err := valiFn(vali); err != nil{
+			return fmt.Errorf("校验失败-%s", err)
+		}
+	}
+
+	return nil
+}
+
+// 九、高阶函数列子
+// 5.1自定义类型（包括函数类型）都可以绑定方法。
 // 定义一个接口
 type Processor interface {
 	Process(data string)
@@ -595,7 +816,7 @@ func DoProcess(p Processor, data string) {
 	p.Process(data)
 }
 
-// 六、中间件 / 装饰器模式（链式处理）
+// 5.2中间件 / 装饰器模式（链式处理）
 // 定义业务处理函数类型
 type Handler func(payload string)
 // 中间件：耗时统计，用函数类型作为参数
@@ -621,3 +842,54 @@ func SaveData(data string) {
 	time.Sleep(100 * time.Millisecond) // 模拟耗时
 	fmt.Println("--> 成功保存数据:", data)
 }
+
+// 十、泛型高阶数据处理（Map / Filter / Reduce）
+// Go 1.18 引入泛型后，高阶函数可以用于编写通用的T合转换、过滤逻辑，减少重复写 for 循环和创建临时切片的样板代码。
+// Filter: 过滤满足断言条件的元素
+// 传入泛型类型 Filters[T any](用来约束传入参数和函数返回值的类型)
+func Filters[T any](element []T, predicate func(T) bool) []T {
+	result := make([]T, 0)
+	for _, ele := range element { // 3= 4
+		if predicate(ele) {
+			result = append(result, ele)
+		}	
+	}
+	return result
+}
+
+// Map: 将一种类型的切片映射为另一种类型的切片
+// [T any, U any] 两个泛型约束
+func Maps[T any, U any](element []T, transform func(T) U) []U {
+	// 返回新U类型切片，最大长度也就ele长度
+	result := make([]U, len(element))
+	for idx, ele := range element {
+		// 根据传入方法比如转换元素为大小写等等
+		result[idx] = transform(ele)
+	}
+	return result
+}
+
+// Sort: 根据对象属性进行排序
+func Sort[T any](elements []T, predicate func(i, j T) bool) []T {
+	// result := make([]T, 0)
+	// 这里用插入排序实现：像整理扑克牌，把新牌插到左边合适的位置
+	for i := 1; i < len(elements); i++ {
+		for j := i; j > 0 && predicate(elements[j], elements[j-1]); j-- {
+			elements[j], elements[j-1] = elements[j-1], elements[j]
+		}
+	}
+	// result = elements
+	return elements
+}
+
+// Reduce：把切片"折叠"成一个值
+// [T any] 元素类型，[R any] 结果类型
+// initial 初始值
+func Reduce[T any, R any](elements []T, initial R, Acc func(acc R, cur T) R) R {
+	accumulator := initial // 累加器
+	for _, current := range elements {
+		accumulator = Acc(accumulator, current) // 每一次累加都是 旧值+当前元素值-> 新积累值
+	}
+	return accumulator
+}
+

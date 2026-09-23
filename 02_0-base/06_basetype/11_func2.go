@@ -99,7 +99,7 @@ func double() (val int) {
 func badDouble() int {
 	var val int = 10
 	defer func ()  {
-		val *= 2 // 这里的defer修改是局部变量，
+		val *= 2 // 这里的def清空切片/map：切片所有元素置为零值但长度不变；map 删除所有键值对。er修改是局部变量，
 	}()
 	return val
 }
